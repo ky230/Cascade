@@ -1,3 +1,6 @@
+# DEPRECATED: This file is kept for reference only.
+# Use widgets.py (SpinnerWidget) instead.
+# Will be removed in v0.4.0.
 """Async animated spinner for API wait states."""
 import sys
 import asyncio

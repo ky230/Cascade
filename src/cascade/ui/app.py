@@ -1,3 +1,6 @@
+# DEPRECATED: This file is kept for reference only.
+# Use textual_app.py (CascadeApp) instead.
+# Will be removed in v0.4.0.
 import asyncio
 import sys
 from prompt_toolkit import PromptSession

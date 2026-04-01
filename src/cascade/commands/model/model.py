@@ -142,6 +142,8 @@ class ModelCommand(BaseCommand):
                     engine.client = ModelClient(provider=sel["provider_key"], model_name=sel["model_id"])
                     if hasattr(ctx.repl, 'update_header'):
                         ctx.repl.update_header()
+                    if hasattr(ctx.repl, 'update_footer'):
+                        ctx.repl.update_footer()
                     await ctx.output(
                         f"✓ Switched to {sel['provider_display']} / {sel['model_label']} ({sel['model_id']})"
                     )
@@ -157,6 +159,8 @@ class ModelCommand(BaseCommand):
                     engine.client = ModelClient(provider=new_provider, model_name=new_model)
                     if hasattr(ctx.repl, 'update_header'):
                         ctx.repl.update_header()
+                    if hasattr(ctx.repl, 'update_footer'):
+                        ctx.repl.update_footer()
                     await ctx.output(f"✓ Switched to {new_provider} / {new_model}")
                     return
                 else:

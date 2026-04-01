@@ -2,9 +2,31 @@
 from __future__ import annotations
 
 import pyperclip
-from textual.widgets import TextArea, Static
+from textual.widgets import TextArea, Static, Input
 from textual.binding import Binding
 from textual.reactive import reactive
+from textual.suggester import Suggester
+
+
+class SlashSuggester(Suggester):
+    """Textual Suggester for slash command autocompletion.
+
+    Only suggests when input starts with '/'. Shows matching
+    commands as the user types.
+    """
+
+    def __init__(self, router, **kwargs):
+        super().__init__(use_cache=False, **kwargs)
+        self._router = router
+
+    async def get_suggestion(self, value: str) -> str | None:
+        if not value.startswith("/"):
+            return None
+        query = value.lower()
+        for trigger in sorted(self._router._commands.keys()):
+            if trigger.lower().startswith(query) and trigger.lower() != query:
+                return trigger
+        return None
 
 
 class CopyableTextArea(TextArea):
@@ -20,7 +42,6 @@ class CopyableTextArea(TextArea):
     """
 
     BINDINGS = [
-        Binding("c", "copy_selection", "Copy", show=True),
         Binding("ctrl+a", "select_all_text", "Select All", show=False),
     ]
 
@@ -29,12 +50,30 @@ class CopyableTextArea(TextArea):
         self.show_line_numbers = False
 
     def action_copy_selection(self) -> None:
-        """Press 'c' to copy selected text to system clipboard."""
+        """Press 'c' to copy selected text to system clipboard (handled in on_key)."""
         text = self.selected_text
         if not text:
-            self.notify("先用鼠标拖选文字", title="ℹ", severity="information")
             return
         self._copy_to_clipboard(text)
+
+    from textual.events import Key
+    def on_key(self, event: Key) -> None:
+        # If 'c' is pressed and text is selected, do copy.
+        if event.character == "c" and self.selected_text:
+            self.action_copy_selection()
+            event.stop()
+            return
+        
+        # Otherwise, if it's a printable character, forward to input!
+        if event.is_printable:
+            try:
+                inp = self.app.query_one("#prompt-input")
+                inp.focus()
+                inp.value += event.character
+                inp.cursor_position = len(inp.value)
+                event.stop()
+            except Exception:
+                pass
 
     def action_select_all_text(self) -> None:
         """Ctrl+A to select all text in this area."""

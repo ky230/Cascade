@@ -6,13 +6,46 @@ Screen {
     layout: vertical;
 }
 
-/* ── Header ── */
+/* ── Banner (ASCII art) ── */
 
-#header-bar {
-    height: 2;
-    background: #161b22;
+#banner {
+    background: #0d1117;
+    color: #5fd7ff;
+    padding: 0 0;
+    height: auto;
+}
+
+/* ── Status bar (model + path) ── */
+
+#status-bar {
+    height: auto;
+    width: auto;
+    background: #0d1117;
     color: #c9d1d9;
     padding: 0 1;
+    margin: 1 1 0 1;
+    border: round #555555;
+}
+
+#help-text {
+    height: 1;
+    background: #0d1117;
+    color: #484f58;
+    margin: 0 1 1 1;
+}
+
+/* ── Prompt Container ── */
+
+#prompt-container {
+    height: 1;
+    layout: horizontal;
+    margin: 1 0 0 1;
+}
+
+#prompt-label {
+    height: 1;
+    width: 2;
+    background: #0d1117;
 }
 
 /* ── Chat history scroll container ── */
@@ -23,20 +56,13 @@ Screen {
 
 /* ── Message labels ── */
 
-.user-label {
-    height: 1;
-    background: #0d1117;
-    color: #5fd7ff;
-    padding: 0 1;
-    margin-top: 1;
-}
-
 .ai-label {
     height: 1;
     background: #0d1117;
     color: #5fd7ff;
     padding: 0 1;
     margin-top: 1;
+    text-style: bold;
 }
 
 .tool-label {
@@ -64,12 +90,24 @@ Screen {
     border: round #5fd7ff;
 }
 
-.user-msg {
+.user-msg-box {
+    width: auto;
+    min-width: 10;
+    max-width: 100%;
+    height: auto;
+    background: #0d1117;
+    color: #c9d1d9;
     border: round #5fd7ff;
+    border-title-color: #5fd7ff;
+    padding: 0 1;
+    margin: 0 1;
 }
 
 .ai-msg {
-    border: round #30363d;
+    border: round #484f58;
+    background: #0d1117;
+    margin: 0 1;
+    padding: 0 1;
 }
 
 .tool-msg {
@@ -102,25 +140,33 @@ Screen {
 /* ── Input ── */
 
 #prompt-input {
-    dock: bottom;
-    height: 3;
-    background: #161b22;
-    padding: 0 1;
+    height: 1;
+    width: 1fr;
+    background: #0d1117;
+    padding: 0 0;
+    margin: 0 0;
+    border: none;
 }
 
 Input {
-    background: #21262d;
+    background: #0d1117;
     color: #c9d1d9;
-    border: tall #30363d;
+    border: none;
+    padding: 0 0;
+    height: 1;
 }
 
 Input:focus {
-    border: tall #5fd7ff;
+    border: none;
 }
 
-/* ── Footer ── */
+/* ── Footer bar (model) ── */
 
-Footer {
+#footer-bar {
+    height: 1;
+    dock: bottom;
     background: #161b22;
+    color: #484f58;
+    padding: 0 1;
 }
 """
