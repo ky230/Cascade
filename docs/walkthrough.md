@@ -77,8 +77,28 @@
 cbf3e34  feat(api): add async stream extraction to ModelClient
 ```
 
-## Phase 3: Core Query Engine ⏳
-*Pending*
+## Phase 3: Core Query Engine ✅
+- **Completed:** 2026-04-01
+- **Branch:** `refactor/repl-architecture`
+
+### Changes
+- **QueryEngine:** Created `src/cascade/engine/query.py` with:
+  - Multi-turn conversation loop maintaining mutable `messages` transcript
+  - `set_system_prompt()` for injecting bootstrap context
+  - `submit()` async method streaming tokens via `ModelClient.stream()`
+  - `_extract_tool_calls()` placeholder for Phase 4 tool dispatch
+  - `TurnResult` dataclass capturing output, tool_uses, and stop_reason
+
+### Tests
+- `tests/test_query_engine.py` — 3 tests PASSED:
+  - `test_query_engine_basic_loop` — token streaming + transcript recording
+  - `test_query_engine_system_prompt` — system prompt injection
+  - `test_query_engine_multi_turn` — multi-turn conversation memory
+
+### Commits
+```
+923af5e  feat(engine): implement base QueryEngine loop and TurnResult
+```
 
 ## Phase 4: Tool System ⏳
 *Pending*
