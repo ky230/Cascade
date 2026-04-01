@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 @click.command()
 @click.option('--provider', default='glm',
-    type=click.Choice(['glm', 'anthropic', 'openai', 'deepseek', 'kimi']))
+    type=click.Choice(['glm', 'anthropic', 'openai', 'deepseek', 'kimi', 'gemini', 'qwen']))
 @click.option('--model', default='glm-4.6v-flash', help='Model identifier')
 @click.option('--verbose', is_flag=True, help='Verbose output')
 def chat(provider, model, verbose):

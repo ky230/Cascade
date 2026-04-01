@@ -21,5 +21,12 @@ def get_litellm_kwargs(provider: str, model_name: str) -> dict:
         kwargs["model"] = f"moonshot/{model_name}"
         kwargs["api_base"] = "https://api.moonshot.cn/v1"
         kwargs["api_key"] = os.getenv("MOONSHOT_API_KEY")
+    elif provider == "gemini":
+        kwargs["model"] = f"gemini/{model_name}"
+        kwargs["api_key"] = os.getenv("GEMINI_API_KEY")
+    elif provider == "qwen":
+        kwargs["model"] = f"openai/{model_name}"
+        kwargs["api_base"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        kwargs["api_key"] = os.getenv("DASHSCOPE_API_KEY")
 
     return kwargs
