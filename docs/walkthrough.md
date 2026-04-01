@@ -1,23 +1,51 @@
-# Cascade Project Walkthrough
+# Cascade v2 Architecture Rewrite — Walkthrough
 
-This document serves as the high-level ledger of completed development phases for the Cascade framework. Detailed, granular TDD plans are stored individually in `docs/plans/`.
+> 基于 Claude Code 8 层架构的完全重写。每个 Phase 完成后更新此文档。
 
-## Phase 0: Base Infrastructure
-- **Completed:** 2026-03-31
-- **Achievements:** Scaffolded `src/cascade` architecture, established TDD harness with `pytest`, created `BaseTool` abstraction, and secured the repository with standard Git/`.env` patterns.
+---
 
-## Phase 1: Universal LLM Integration
+## Phase 0: Infrastructure & Cleanup ✅
 - **Completed:** 2026-04-01
-- **Achievements:** Integrated `litellm` as the universal mesh for LLM routing, enabling seamless fallback between OpenAI, Anthropic, Gemini, and localized Chinese models (GLM, Kimi, DeepSeek) via `ModelClient`. Tested with real Google GenAI endpoints.
+- **Branch:** `refactor/repl-architecture`
 
-## Phase 2a: Agent Conversation & CLI
-- **Completed:** 2026-04-01
-- **Achievements:** Implemented `Agent` class with multi-turn conversation memory (`List[Dict]`), upgraded `ModelClient` to accept full message history arrays, built `cascade chat` CLI entrypoint with `argparse`.
+### Changes
+- **Scaffolded 8-layer directory structure** under `src/cascade/`:
+  - `cli/commands/`, `bootstrap/`, `engine/`, `tools/hep/`, `permissions/`, `services/{mcp,memory,remote}/`, `state/`, `types/`
+- **Deleted deprecated modules:**
+  - `src/cascade/api/` (→ will be replaced by `services/api_client.py`)
+  - `src/cascade/core/` (→ will be replaced by `engine/` + `tools/base.py`)
+- **Migrated CLI entry:** `src/cascade/cli.py` → `src/cascade/cli/main.py`
+- **Updated `pyproject.toml`** entry point to `cascade.cli.main:main`
+- **Temporarily commented out** broken import in `ui/app.py` (`cascade.core.agent` → marked `TODO(phase3)`)
 
-## Phase 2b: CLI Visual Polish
-- **Completed:** 2026-04-01
-- **Achievements:** Added fused ASCII art banner (particle cascade graph + ANSI Shadow block letters + dynamic metadata box with ⚛ atom icon), async loading spinner with elapsed timer, ANSI 256-color system (Deep Sea Blue → Cyan gradient palette) with hierarchical coloring, fully enclosed interactive input box, minimalist `>` prompt, bright cyan `✧ Cascade` AI prefix, and red error output.  Inspired by Claude Code and Gemini CLI design patterns.
+### Tests
+- `tests/test_architecture.py` — 3 tests PASSED:
+  - `test_package_structure_exists`
+  - `test_deprecated_dirs_removed`
+  - `test_cli_moved`
 
-## Phase 2c: prompt_toolkit Migration
-- **Completed:** 2026-04-01
-- **Achievements:** Migrated to `prompt_toolkit` to flawlessly mimic the `gemini-cli` UI. Replaced macOS `readline` manual ANSI cursor hacks with a native event loop that supports dim placeholder text ("Type your message.."), Bright Blue box bordering, multi-line native wrapping without breaking box aesthetics, and a bottom status bar tracking `cwd` and sandbox states.
+### Commits
+```
+12afbd3  chore: scaffold Cascade v2 8-layer directory structure
+256427d  refactor: drop deprecated api/core modules and move CLI entry
+```
+
+---
+
+## Phase 1: CLI Entry & Bootstrap ⏳
+*Pending*
+
+## Phase 2: Reactive State & API Streaming ⏳
+*Pending*
+
+## Phase 3: Core Query Engine ⏳
+*Pending*
+
+## Phase 4: Tool System ⏳
+*Pending*
+
+## Phase 5: Permission & Security ⏳
+*Pending*
+
+## Phase 6: UI Rendering Integration ⏳
+*Pending*
