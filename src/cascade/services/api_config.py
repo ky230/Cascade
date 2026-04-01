@@ -13,7 +13,7 @@ def get_litellm_kwargs(provider: str, model_name: str) -> dict:
     elif provider == "glm":
         kwargs["model"] = f"openai/{model_name}"
         kwargs["api_base"] = "https://open.bigmodel.cn/api/paas/v4/"
-        kwargs["api_key"] = os.getenv("ZHIPUAI_API_KEY")
+        kwargs["api_key"] = os.getenv("ZHIPUAI_API_KEY") or os.getenv("GLM_API_KEY")
     elif provider == "deepseek":
         kwargs["model"] = f"deepseek/{model_name}"
         kwargs["api_base"] = "https://api.deepseek.com"
