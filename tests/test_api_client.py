@@ -78,3 +78,62 @@ async def test_stream_without_tools_still_works():
         async for token in client.stream([{"role": "user", "content": "hi"}]):
             tokens.append(token)
         assert tokens == ["world"]
+
+
+@pytest.mark.asyncio
+async def test_stream_full_captures_tool_calls():
+    """stream_full() should return both accumulated text and tool_calls."""
+    from unittest.mock import MagicMock, patch
+    from cascade.services.api_client import StreamResult
+
+    client = ModelClient("gemini", "gemini-2.5-flash")
+
+    # Simulate 3 chunks: text, tool_call start, tool_call args
+    chunk1 = MagicMock()
+    chunk1.choices = [MagicMock()]
+    chunk1.choices[0].delta.content = "Let me check "
+    chunk1.choices[0].delta.tool_calls = None
+    chunk1.choices[0].finish_reason = None
+
+    chunk2 = MagicMock()
+    chunk2.choices = [MagicMock()]
+    chunk2.choices[0].delta.content = None
+    tc = MagicMock()
+    tc.index = 0
+    tc.id = "call_123"
+    tc.function.name = "bash"
+    tc.function.arguments = '{"comma'
+    chunk2.choices[0].delta.tool_calls = [tc]
+    chunk2.choices[0].finish_reason = None
+
+    chunk3 = MagicMock()
+    chunk3.choices = [MagicMock()]
+    chunk3.choices[0].delta.content = None
+    tc2 = MagicMock()
+    tc2.index = 0
+    tc2.id = None
+    tc2.function.name = None
+    tc2.function.arguments = 'nd": "ls"}'
+    chunk3.choices[0].delta.tool_calls = [tc2]
+    chunk3.choices[0].finish_reason = "tool_calls"
+
+    async def mock_acompletion(**kwargs):
+        async def gen():
+            yield chunk1
+            yield chunk2
+            yield chunk3
+        return gen()
+
+    with patch("cascade.services.api_client.acompletion", side_effect=mock_acompletion):
+        result = await client.stream_full(
+            [{"role": "user", "content": "list files"}],
+            tools=[{"type": "function", "function": {"name": "bash"}}],
+            on_token=None,
+        )
+
+    assert isinstance(result, StreamResult)
+    assert result.text == "Let me check "
+    assert len(result.tool_calls) == 1
+    assert result.tool_calls[0]["name"] == "bash"
+    assert result.tool_calls[0]["arguments"] == {"command": "ls"}
+    assert result.tool_calls[0]["id"] == "call_123"
