@@ -10,6 +10,39 @@
 
 ---
 
+## 📊 Progress Status (Updated 2026-04-02)
+
+| Batch | Status | Notes |
+|-------|--------|-------|
+| **1: Infrastructure** | ✅ DONE | `BaseCommand`, `CommandRouter`, REPL wiring — commit `1e02743` |
+| **2: Core P0** | ✅ DONE | `/help`, `/exit`, `/clear` — commit `1e02743` |
+| **3: Model** | ✅ DONE (expanded) | `/model` interactive picker — commits `5081738` → `3a4ed25`. **超额完成**: 扩展模型目录含 DeepSeek, GLM, xAI, MiniMax, Kimi, Qwen, Anthropic, OpenAI; 自定义 SSE 流式; 国内 endpoint 路由 |
+| **4: Core P1/P2** | ⬜ NOT STARTED | `/compact`, `/resume`, `/rename`, `/branch`, `/rewind`, `/export` |
+| **5: Setup** | ⬜ NOT STARTED | `/version`, `/config`, `/doctor`, `/init`, `/env` |
+| **6: UI** | ⬜ NOT STARTED | `/theme`, `/vim`, `/brief`, `/btw` |
+| **7: Tools** | ⬜ NOT STARTED | `/permissions`, `/hooks`, `/debug-tool-call`, `/sandbox-toggle` |
+| **8: Git** | ⬜ NOT STARTED | `/commit`, `/commit-push-pr`, `/pr-comments`, `/review`, `/security-review` |
+| **9: Memory** | ⬜ NOT STARTED | `/memory`, `/summary` |
+| **10: Plugins** | ⬜ NOT STARTED | `/plugin`, `/reload-plugins`, `/skills`, `/agents`, `/mcp`, `/tasks` |
+
+### ⚠️ 阻塞项：UI 架构重构 (Phase 8.5)
+
+> **Batches 4-10 暂停**，优先执行 UI 层从 `Rich + prompt_toolkit` 迁移到 **Textual** 框架。
+>
+> **原因**: 当前 UI 三大灾难性问题：
+> 1. `/model` 表格 resize 残影
+> 2. 长会话 scrollback 丢失
+> 3. 终端 resize 时全局文本错位
+>
+> **POC 验证通过** (2026-04-01): Textual + ReadOnly TextArea + pyperclip 方案可行。
+> - alternate screen 自动管理，resize 无残影 ✅
+> - VerticalScroll 无限回滚 ✅
+> - TextArea 内置鼠标拖选 + `c` 键复制 ✅
+>
+> **下一步**: 制定 `phase8.5-textual-migration.md` 实施计划。
+
+---
+
 ## Batch Overview
 
 | Batch | Category | Commands | Count | Test Checkpoint |
