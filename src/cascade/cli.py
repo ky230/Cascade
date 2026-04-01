@@ -58,11 +58,17 @@ async def interactive_chat(provider: str, model: str):
             print(middle)
             print(bottom, flush=True)
 
-            # Move cursor UP 2 lines, FORWARD 3 columns
-            sys.stdout.write(f"\033[2A\033[3C{CYAN}{BOLD}>{RESET} ")
+            # Move cursor UP 2 lines and to the start of the line
+            sys.stdout.write("\033[2A\r")
             sys.stdout.flush()
 
-            user_input = input()
+            # Construct readline-safe prompt (\x01 and \x02 mask non-printable ANSI characters)
+            P_DIM = f"\x01{DIM}\x02"
+            P_RESET = f"\x01{RESET}\x02"
+            P_CYAN_BOLD = f"\x01{CYAN}{BOLD}\x02"
+            prompt_str = f" {P_DIM}│{P_RESET} {P_CYAN_BOLD}>{P_RESET} "
+
+            user_input = input(prompt_str)
 
             # Move cursor DOWN 2 lines, past the bottom border
             sys.stdout.write("\033[2B")
