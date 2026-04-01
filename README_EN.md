@@ -1,6 +1,8 @@
-<p align="center">
-  <img src="assets/cascade-logo.png" alt="Cascade" width="280" />
-</p>
+
+
+
+https://github.com/user-attachments/assets/780a505e-a97a-4c7f-896f-e62b8f76f626
+
 
 <p align="center">
   <strong>LLM-Powered Workflow Orchestration for High-Energy Physics</strong>
