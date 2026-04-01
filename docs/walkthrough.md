@@ -128,8 +128,24 @@ cbf3e34  feat(api): add async stream extraction to ModelClient
 4eec946  feat(tools): implement FileRead, FileWrite, Grep, and Glob tools
 ```
 
-## Phase 5: Permission & Security ⏳
-*Pending*
+## Phase 5: Permission & Security ✅
+- **Completed:** 2026-04-01
+- **Branch:** `refactor/repl-architecture`
+
+### Changes
+- **PermissionEngine:** Created `src/cascade/permissions/engine.py`
+  - Defines `PermissionMode` (`DEFAULT`, `AUTO`, `BYPASS`)
+  - Evaluates tool safety (`is_read_only`, `is_destructive`) against the selected mode
+  - Integrates an async interactive prompt fallback (`ask_user`) for non-automatic approvals
+
+### Tests
+- `tests/test_permissions.py` — 5 tests PASSED (covering all modes and tool types)
+- **Full suite: 35/35 PASSED**
+
+### Commits
+```
+1a99887  feat(permissions): implement mode-based PermissionEngine (Auto/Ask/Bypass)
+```
 
 ## Phase 6: UI Rendering Integration ⏳
 *Pending*
