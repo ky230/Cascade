@@ -5,14 +5,14 @@ load_dotenv()
 
 CUSTOM_PROVIDERS = {
     "glm": {
-        "prefix": "zhipu/",
+        "prefix": "openai/",
         "env_key": "GLM_API_KEY",
-        "base_url": None
+        "base_url": "https://open.bigmodel.cn/api/paas/v4/"
     },
     "deepseek": {
-        "prefix": "deepseek/",
+        "prefix": "openai/",
         "env_key": "DEEPSEEK_API_KEY",
-        "base_url": None
+        "base_url": "https://api.deepseek.com"
     },
     "kimi": {
         "prefix": "openai/",
