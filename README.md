@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cascade-logo.png" alt="Cascade" width="280" />
+  <img src="assets/cascade-logo.gif" alt="Cascade" width="900" />
 </p>
 
 <p align="center">
