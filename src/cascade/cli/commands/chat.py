@@ -1,6 +1,10 @@
 import asyncio
+import sys
 import click
 from dotenv import load_dotenv
+
+from cascade.services.api_client import ModelClient
+from cascade.ui.app import CascadeRepl
 
 @click.command()
 @click.option('--provider', default='glm',
@@ -10,5 +14,12 @@ from dotenv import load_dotenv
 def chat(provider, model, verbose):
     """Start an interactive chat session."""
     load_dotenv()
-    # Temporary placeholder until UI is rebuilt
-    click.echo(f"Starting chat with {provider} {model}...")
+    try:
+        client = ModelClient(provider=provider, model_name=model)
+        repl = CascadeRepl(client)
+        asyncio.run(repl.run())
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except Exception as e:
+        click.echo(f"Error starting chat: {e}", err=True)
+        sys.exit(1)
