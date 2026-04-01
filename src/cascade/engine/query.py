@@ -92,6 +92,8 @@ class QueryEngine:
                 )
 
             # Execute each tool call
+            abort_remaining = False
+
             for tc in result.tool_calls:
                 tool_name = tc["name"]
                 tool_args = tc["arguments"]
@@ -99,6 +101,15 @@ class QueryEngine:
 
                 if on_tool_start:
                     on_tool_start(tool_name, tool_args)
+
+                if abort_remaining:
+                    # Silently fill remaining tool IDs so message history stays valid
+                    self.messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": "Cancelled: user denied a previous tool call.",
+                    })
+                    continue
 
                 # Permission check
                 if self.permissions and self.registry:
@@ -123,6 +134,7 @@ class QueryEngine:
                                 "tool_call_id": tool_id,
                                 "content": tool_result.output,
                             })
+                            abort_remaining = True
                             continue
 
                 if self.registry:
@@ -146,6 +158,14 @@ class QueryEngine:
                     "tool_call_id": tool_id,
                     "content": tool_result.output,
                 })
+
+            # Hard stop: user denied → no more LLM calls, return to prompt
+            if abort_remaining:
+                return TurnResult(
+                    output="",
+                    tool_uses=all_tool_uses,
+                    stop_reason="user_denied",
+                )
 
         return TurnResult(
             output="Max tool rounds reached",

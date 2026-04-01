@@ -4,6 +4,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.styles import Style as PTKStyle
 from rich.console import Console
 from rich.live import Live
 
@@ -19,6 +20,7 @@ from cascade.ui.renderer import MessageRenderer
 from cascade.ui.banner import render_banner_rich
 from cascade.bootstrap.system_prompt import build_system_prompt
 from cascade.ui.spinner import Spinner
+from cascade.commands import CommandRouter, CommandContext
 
 class CascadeRepl:
     def __init__(self, client):
@@ -45,8 +47,40 @@ class CascadeRepl:
         def prompt_continuation(width, line_number, is_soft_wrap):
             return HTML("<style fg='#5fd7ff' bold='true'>│  </style>")
 
-        self.session = PromptSession(key_bindings=kb, erase_when_done=True)
         self.prompt_continuation = prompt_continuation
+
+        # --- Slash Command Router ---
+        self.router = CommandRouter()
+
+        # --- Register P0 commands ---
+        from cascade.commands.core.help import HelpCommand
+        from cascade.commands.core.exit import ExitCommand
+        from cascade.commands.core.clear import ClearCommand
+        self.router.register(HelpCommand())
+        self.router.register(ExitCommand())
+        self.router.register(ClearCommand())
+
+        # Cascade theme for completion dropdown
+        _ptk_style = PTKStyle.from_dict({
+            # Completion menu body
+            'completion-menu':                'bg:#1a1a2e',
+            'completion-menu.completion':      'bg:#1a1a2e #c0c0c0',
+            'completion-menu.completion.current': 'bg:#0087ff #ffffff bold',
+            # Meta (description) column
+            'completion-menu.meta.completion':          'bg:#1a1a2e #5fd7ff',
+            'completion-menu.meta.completion.current':  'bg:#0087ff #ffffff',
+            # Scrollbar
+            'scrollbar.background':           'bg:#1a1a2e',
+            'scrollbar.button':               'bg:#005fff',
+        })
+
+        self.session = PromptSession(
+            key_bindings=kb,
+            completer=self.router.get_completer(),
+            complete_while_typing=True,
+            erase_when_done=True,
+            style=_ptk_style,
+        )
 
         
         # Initialize Core Components
@@ -88,6 +122,26 @@ class CascadeRepl:
                     
                 if not user_input.strip():
                     continue
+
+                # --- Slash command routing ---
+                if user_input.strip().startswith('/'):
+                    cmd_ctx = CommandContext(
+                        console=self.console,
+                        engine=self.engine,
+                        session=self.session,
+                        repl=self,
+                    )
+                    handled = await self.router.dispatch(user_input, cmd_ctx)
+                    if handled:
+                        continue
+                    else:
+                        self.console.print(
+                            f"[dim]Unknown command: {user_input.strip().split()[0]}. "
+                            f"Type /help for available commands.[/dim]"
+                        )
+                        continue
+
+                # --- Legacy plain-text exit ---
                 if user_input.strip().lower() in ['exit', 'quit']:
                     break
 
