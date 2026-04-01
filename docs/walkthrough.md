@@ -176,3 +176,39 @@ cbf3e34  feat(api): add async stream extraction to ModelClient
 a550d04  feat(ui): implement Rich Markdown renderer for Assistant and Tools
 87c15dc  feat(ui): wire up CascadeRepl to use QueryEngine and Streaming
 ```
+
+---
+
+## Phase 7: Tool Execution Loop ✅
+- **Completed:** 2026-04-01
+- **Branch:** `feat/phase7-tool-loop`
+
+### Changes
+- **Core Engine (`src/cascade/engine/query.py`)**
+  - Fully implemented the multi-round agentic loop (up to 10 rounds per query).
+  - Added `stream_full()` support to handle tool call JSON chunks alongside text tokens.
+  - Implemented the `ask_user` callback injection for interactive tool permission prompts.
+- **Provider Integrations (`src/cascade/services/api_config.py` & `.env`)**
+  - Standardized multi-provider testing for **ZhipuAI (GLM-4/5)**, **DeepSeek (V3/R1)**, and **Qwen**.
+  - Enabled dynamic `CASCADE_DEFAULT_MODEL` detection from `.env` inside `chat.py`.
+- **UI Enhancements (`src/cascade/ui/app.py` & `spinner.py`)**
+  - Safely managed Async Spinner lifecycle, preventing overlapping ANSI escape code leaks on tool completion.
+  - Interactive bash confirmation via `prompt_toolkit`.
+
+### Tests
+- `tests/test_integration_tool_loop.py` — Added full end-to-end integration test validating the QueryEngine → ToolRegistry → ModelClient cycle.
+- **Full suite: 44/44 PASSED**
+
+### Commits
+```
+a1e64ff  feat(engine): implement agentic tool execution loop
+bc18732  feat(engine): wire PermissionEngine into tool loop
+b7edbb7  feat(ui): render tool invocations and results in REPL
+1fe0483  test: add e2e integration test for tool loop
+a13bdab  fix(api): fix litellm provider config for zhipu
+4cf986a  fix(cli): make default model respect .env
+380950c  chore: add Qwen/DashScope API key placeholder
+972cfae  fix(ui): ensure spinner/live stop on API errors
+5cae9a7  feat(permission): implement interactive ask_user callback
+02ee741  fix(ui): prevent spinner task leaks and rendering overlaps
+```
