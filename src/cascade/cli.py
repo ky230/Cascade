@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import sys
 from dotenv import load_dotenv
 from cascade.core.agent import Agent
 from cascade.ui.banner import render_banner, render_status_bar
@@ -38,11 +39,30 @@ async def interactive_chat(provider: str, model: str):
 
     while True:
         try:
-            # Input box
-            width = min(shutil.get_terminal_size().columns - 2, 80)
-            print(f"{DIM}╭{'─' * width}╮{RESET}")
-            user_input = input(f"{DIM}│{RESET} {CYAN}{BOLD}>{RESET} ")
-            print(f"{DIM}╰{'─' * width}╯{RESET}")
+            # Calculate exactly the same width as the status bar for a unified look
+            left_clean = f" ⚛  HEP Agentic Orchestrator v0.1.0 "
+            sep_clean = " │ "
+            right_clean = f" {provider}  ──  {model} "
+            width = len(left_clean) + len(sep_clean) + len(right_clean)
+
+            # Input box — fully enclosed before typing
+            top    = f" {DIM}╭{'─' * width}╮{RESET}"
+            middle = f" {DIM}│{RESET}{' ' * width}{DIM}│{RESET}"
+            bottom = f" {DIM}╰{'─' * width}╯{RESET}"
+
+            print(top)
+            print(middle)
+            print(bottom, flush=True)
+
+            # Move cursor UP 2 lines, FORWARD 3 columns
+            sys.stdout.write(f"\033[2A\033[3C{CYAN}{BOLD}>{RESET} ")
+            sys.stdout.flush()
+
+            user_input = input()
+
+            # Move cursor DOWN 2 lines, past the bottom border
+            sys.stdout.write("\033[2B")
+            sys.stdout.flush()
 
             if user_input.lower() in ["exit", "quit"]:
                 print(f"\n{DIM}Exiting Cascade. Goodbye! 👋{RESET}")
