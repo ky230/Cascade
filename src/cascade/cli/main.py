@@ -1,4 +1,3 @@
-import asyncio
 import sys
 import click
 import os
@@ -7,10 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from cascade.services.api_client import ModelClient
-from cascade.ui.app import CascadeRepl
+
 
 @click.command()
-@click.version_option(version="0.2.0", prog_name="Cascade")
+@click.version_option(version="0.3.0", prog_name="Cascade")
 @click.option('--provider', default=os.getenv('CASCADE_DEFAULT_PROVIDER', 'glm'),
     type=click.Choice(['glm', 'anthropic', 'openai', 'deepseek', 'kimi', 'gemini', 'qwen', 'grok']))
 @click.option('--model', default=os.getenv('CASCADE_DEFAULT_MODEL', 'glm-4.6'), help='Model identifier')
@@ -19,8 +18,9 @@ def cli(provider, model, verbose):
     """Cascade — HEP Agentic Orchestrator"""
     try:
         client = ModelClient(provider=provider, model_name=model)
-        repl = CascadeRepl(client)
-        asyncio.run(repl.run())
+        from cascade.ui.textual_app import CascadeApp
+        app = CascadeApp(client)
+        app.run()
     except KeyboardInterrupt:
         sys.exit(0)
     except Exception as e:
@@ -32,3 +32,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
