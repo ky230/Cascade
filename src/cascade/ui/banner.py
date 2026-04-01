@@ -1,5 +1,5 @@
 """Cascade CLI welcome banner with gradient coloring."""
-from cascade.ui.colors import GRADIENT, BOLD, RESET, DIM, CYAN
+from cascade.ui.colors import GRADIENT, BOLD, RESET, DIM, CYAN, BLUE, GREEN, LIGHT_CYAN
 
 VERSION = "0.1.0"
 
@@ -34,16 +34,22 @@ def render_banner() -> str:
 
 
 def render_status_bar(provider: str, model: str) -> str:
-    """Render the metadata box UI."""
-    top    = " ╭───────────────────────────────────────────────────────────────────────╮"
-    middle = f" │  ❖  HEP Agentic Orchestrator v{VERSION}    │    {provider}  ──  {model}"
+    """Render the metadata box UI with dynamic width and hierarchical coloring."""
+    # Plain-text segments for width calculation (no ANSI codes)
+    left_clean = f" ⚛  HEP Agentic Orchestrator v{VERSION} "
+    sep_clean = " │ "
+    right_clean = f" {provider}  ──  {model} "
 
-    # Calculate padding to ensure the right border aligns exactly
-    visible_len = len(f" │  ❖  HEP Agentic Orchestrator v{VERSION}    │    {provider}  ──  {model}")
-    pad_len = 73 - visible_len
-    pad_len = max(pad_len, 1)  # Prevent negative
+    # Total visible width inside the box (between the outer │ borders)
+    inner_width = len(left_clean) + len(sep_clean) + len(right_clean)
 
-    middle_padded = middle + (" " * pad_len) + "│"
-    bottom = " ╰───────────────────────────────────────────────────────────────────────╯"
+    # Colored segments
+    left_colored = f" {LIGHT_CYAN}⚛{RESET}  {DIM}HEP Agentic Orchestrator v{VERSION}{RESET} "
+    sep_colored = f" {DIM}│{RESET} "
+    right_colored = f" {BLUE}{provider}{RESET}  {DIM}──{RESET}  {GREEN}{model}{RESET} "
 
-    return f"{DIM}{top}\n{middle_padded}\n{bottom}{RESET}"
+    top    = f" {DIM}╭{'─' * inner_width}╮{RESET}"
+    middle = f" {DIM}│{RESET}{left_colored}{sep_colored}{right_colored}{DIM}│{RESET}"
+    bottom = f" {DIM}╰{'─' * inner_width}╯{RESET}"
+
+    return f"{top}\n{middle}\n{bottom}"

@@ -36,7 +36,7 @@ async def interactive_chat(provider: str, model: str):
 
     while True:
         try:
-            user_input = input(f"{DIM}You>{RESET} ")
+            user_input = input(f"\n{CYAN}{BOLD}>{RESET} ")
             if user_input.lower() in ["exit", "quit"]:
                 print(f"\n{DIM}Exiting Cascade. Goodbye! 👋{RESET}")
                 break
