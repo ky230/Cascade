@@ -14,7 +14,8 @@ async def test_client_generate(mocker):
     mock_acompletion = AsyncMock(return_value=mock_response)
     mocker.patch('cascade.api.client.acompletion', new=mock_acompletion)
     
-    result = await client.generate("Hello physics")
+    messages = [{"role": "user", "content": "Hello physics"}]
+    result = await client.generate(messages)
     
     assert result == "Mocked LLM reply"
     mock_acompletion.assert_called_once()
