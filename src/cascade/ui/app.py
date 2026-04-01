@@ -62,8 +62,11 @@ class CascadeRepl:
         
         self.permissions = PermissionEngine(mode=PermissionMode.AUTO)
         
-        # Initialize Engine
-        self.engine = QueryEngine(client, QueryEngineConfig())
+        self.engine = QueryEngine(
+            client, QueryEngineConfig(),
+            registry=self.registry,
+            permissions=self.permissions,
+        )
         self.engine.set_system_prompt(build_system_prompt())
 
     async def run(self):
@@ -123,7 +126,27 @@ class CascadeRepl:
                         from rich.markdown import Markdown
                         live.update(Markdown("".join(tokens)))
 
-                result = await self.engine.submit(user_input, on_token=on_token)
+                def handle_tool_start(name, args):
+                    nonlocal live, spinner
+                    if live is not None:
+                        live.stop()
+                        live = None
+                    if spinner._task is not None:
+                        spinner.stop()
+                    self.renderer.render_tool_start(name, args)
+
+                def handle_tool_end(name, tool_result):
+                    self.renderer.render_tool_end(name, tool_result.output, tool_result.is_error)
+                    nonlocal spinner
+                    spinner = Spinner(message="Generating")
+                    spinner.start()
+
+                result = await self.engine.submit(
+                    user_input, 
+                    on_token=on_token,
+                    on_tool_start=handle_tool_start,
+                    on_tool_end=handle_tool_end
+                )
                 
                 if spinner._task is not None:
                     spinner.stop()

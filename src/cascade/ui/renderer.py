@@ -13,18 +13,32 @@ class MessageRenderer:
         self.console.print(Markdown(content))
         self.console.print()
 
-    def render_tool_use(self, tool_name: str, input_summary: str) -> None:
-        self.console.print(Panel(
-            f"[dim]{input_summary}[/dim]",
-            title=f"[bold yellow]⚡ {tool_name}[/bold yellow]",
-            border_style="dim", expand=False,
-        ))
+    def render_tool_start(self, tool_name: str, tool_input: dict) -> None:
+        """Show that a tool is about to execute."""
+        input_preview = str(tool_input)
+        if len(input_preview) > 120:
+            input_preview = input_preview[:120] + "..."
+        self.console.print(
+            Panel(
+                f"[dim]{input_preview}[/dim]",
+                title=f"⚙ {tool_name}",
+                title_align="left",
+                border_style="yellow",
+                expand=False,
+            )
+        )
 
-    def render_tool_result(self, tool_name: str, output: str, is_error: bool = False) -> None:
+    def render_tool_end(self, tool_name: str, output: str, is_error: bool = False) -> None:
+        """Show the result of a tool execution."""
         style = "red" if is_error else "green"
-        icon = "✗" if is_error else "✓"
-        self.console.print(Panel(
-            output[:500] + ("..." if len(output) > 500 else ""),
-            title=f"[{style}]{icon} {tool_name}[/{style}]",
-            border_style="dim", expand=False,
-        ))
+        label = "✗ Error" if is_error else "✓ Result"
+        display = output if len(output) <= 500 else output[:500] + "\n..."
+        self.console.print(
+            Panel(
+                display,
+                title=f"{label}: {tool_name}",
+                title_align="left",
+                border_style=style,
+                expand=False,
+            )
+        )
