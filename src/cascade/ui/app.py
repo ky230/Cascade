@@ -114,30 +114,34 @@ class CascadeRepl:
                 live = None
                 
                 def on_token(t):
-                    nonlocal live
-                    if spinner._task is not None:
+                    nonlocal live, spinner
+                    if spinner and spinner._task is not None:
                         spinner.stop()
-                        # Start Live only after spinner stops
+                        
+                    if live is None:
                         live = Live("", console=self.console, refresh_per_second=15)
                         live.start()
                     
                     tokens.append(t)
-                    if live is not None:
-                        from rich.markdown import Markdown
-                        live.update(Markdown("".join(tokens)))
+                    from rich.markdown import Markdown
+                    live.update(Markdown("".join(tokens)))
 
                 def handle_tool_start(name, args):
                     nonlocal live, spinner
                     if live is not None:
                         live.stop()
                         live = None
-                    if spinner._task is not None:
+                    if spinner and spinner._task is not None:
                         spinner.stop()
                     self.renderer.render_tool_start(name, args)
 
                 def handle_tool_end(name, tool_result):
-                    self.renderer.render_tool_end(name, tool_result.output, tool_result.is_error)
                     nonlocal spinner
+                    if spinner and spinner._task is not None:
+                        spinner.stop()
+                        
+                    self.renderer.render_tool_end(name, tool_result.output, tool_result.is_error)
+                    
                     spinner = Spinner(message="Generating")
                     spinner.start()
 
@@ -145,7 +149,7 @@ class CascadeRepl:
                     nonlocal live, spinner
                     if live is not None:
                         live.stop()
-                    if spinner._task is not None:
+                    if spinner and spinner._task is not None:
                         spinner.stop()
                     
                     self.console.print()
