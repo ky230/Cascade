@@ -2,6 +2,8 @@ import asyncio
 import sys
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
 from rich.live import Live
 
@@ -16,12 +18,30 @@ from cascade.tools.search_tools import GrepTool, GlobTool
 from cascade.ui.renderer import MessageRenderer
 from cascade.ui.banner import render_banner_rich
 from cascade.bootstrap.system_prompt import build_system_prompt
+from cascade.ui.spinner import Spinner
 
 class CascadeRepl:
     def __init__(self, client):
         self.console = Console()
         self.renderer = MessageRenderer(self.console)
-        self.session = PromptSession()
+        
+        # Configure KeyBindings
+        kb = KeyBindings()
+        
+        @kb.add('c-n')
+        def _(event):
+            event.current_buffer.insert_text('\n')
+            
+        @kb.add('enter')
+        def _(event):
+            b = event.current_buffer
+            if not b.text.strip():
+                # Ignore empty enter
+                pass
+            else:
+                b.validate_and_handle()
+
+        self.session = PromptSession(key_bindings=kb)
         
         # Initialize Core Components
         self.store = Store()
@@ -46,12 +66,12 @@ class CascadeRepl:
             model=self.engine.client.model_name
         )
         self.console.print(banner)
-        self.console.print("[dim]Type 'exit' or 'quit' to close.[/dim]\n")
+        self.console.print("[dim]Type 'exit' or 'quit' to close. Ctrl+N for newline.[/dim]\n")
         
         while True:
             try:
                 with patch_stdout():
-                    user_input = await self.session.prompt_async("\n❯ ")
+                    user_input = await self.session.prompt_async(HTML("\n<style fg='#5fd7ff' bold='true'>❯</style> "))
                     
                 if not user_input.strip():
                     continue
@@ -62,18 +82,33 @@ class CascadeRepl:
                 self.console.print("[bold #5fd7ff]✦ Cascade[/bold #5fd7ff]")
                 self.console.print()
                 
-                # Streaming rendering
-                with Live("", console=self.console, refresh_per_second=10) as live:
-                    tokens = []
+                # Setup Spinner
+                spinner = Spinner(message="Generating")
+                spinner.start()
+                
+                tokens = []
+                live = None
+                
+                def on_token(t):
+                    nonlocal live
+                    if spinner._task is not None:
+                        spinner.stop()
+                        # Start Live only after spinner stops
+                        live = Live("", console=self.console, refresh_per_second=15)
+                        live.start()
                     
-                    def on_token(t):
-                        tokens.append(t)
-                        # We use raw printing for stream effect, renderer is for final markdown formatting
-                        # but Live can update Markdown
+                    tokens.append(t)
+                    if live is not None:
                         from rich.markdown import Markdown
                         live.update(Markdown("".join(tokens)))
 
-                    result = await self.engine.submit(user_input, on_token=on_token)
+                result = await self.engine.submit(user_input, on_token=on_token)
+                
+                if spinner._task is not None:
+                    spinner.stop()
+                    
+                if live is not None:
+                    live.stop()
 
                 self.console.print()
 
