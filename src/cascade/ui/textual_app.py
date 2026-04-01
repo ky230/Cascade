@@ -12,7 +12,6 @@ import asyncio
 import os
 from typing import Optional
 
-import pyperclip
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, Static, Input
@@ -39,9 +38,6 @@ class CascadeApp(App):
     ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
-        Binding("ctrl+q", "quit", "退出", show=True),
-        Binding("ctrl+l", "clear_chat", "清屏", show=True),
-        Binding("ctrl+y", "copy_last_reply", "复制上条", show=True),
         Binding("escape", "focus_input", "输入框", show=False),
     ]
 
@@ -109,7 +105,7 @@ class CascadeApp(App):
         )
 
         yield Input(
-            placeholder="❯ 输入消息 (鼠标拖选→c 复制 | Ctrl+Y 复制上条 | Ctrl+Q 退出)",
+            placeholder="❯ 输入消息 (鼠标拖选→c 复制 | /help 查看命令)",
             id="prompt-input",
         )
         yield Footer()
@@ -130,11 +126,7 @@ class CascadeApp(App):
         lines.append("  操作指南:")
         lines.append("  ─────────")
         lines.append("  • 鼠标拖选 → 按 c      复制选中文本")
-        lines.append("  • Ctrl+Y               复制最近一条 AI 回复")
-        lines.append("  • Ctrl+A               全选当前区域")
         lines.append("  • 滚轮 / PgUp/PgDn     翻阅历史")
-        lines.append("  • Ctrl+L               清屏")
-        lines.append("  • Ctrl+Q               退出")
         lines.append("  • /help                查看所有命令")
         lines.append("")
         return "\n".join(lines)
@@ -351,26 +343,6 @@ class CascadeApp(App):
         )
 
     # ── Actions ───────────────────────────────────────────────
-
-    def action_clear_chat(self) -> None:
-        """Ctrl+L: Clear chat history widgets."""
-        container = self.query_one("#chat-history", VerticalScroll)
-        container.remove_children()
-
-    def action_copy_last_reply(self) -> None:
-        """Ctrl+Y: Copy last AI reply to clipboard."""
-        if not self._last_reply:
-            self.notify("没有可复制的内容", title="ℹ")
-            return
-        try:
-            pyperclip.copy(self._last_reply)
-            self.notify(f"已复制 {len(self._last_reply)} 字符", title="✅")
-        except Exception:
-            try:
-                self.copy_to_clipboard(self._last_reply)
-                self.notify("已复制 (OSC52)", title="✅")
-            except Exception:
-                self.notify("复制失败", title="❌", severity="error")
 
     def action_focus_input(self) -> None:
         """Escape: Focus the input box."""

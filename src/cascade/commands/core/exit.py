@@ -8,5 +8,8 @@ class ExitCommand(BaseCommand):
     category = "Session"
 
     async def execute(self, ctx: CommandContext, args: str) -> None:
-        ctx.console.print("[dim]Goodbye![/dim]")
-        raise SystemExit(0)
+        if hasattr(ctx.repl, 'exit'):
+            # Textual mode — graceful exit
+            ctx.repl.exit()
+        else:
+            raise SystemExit(0)

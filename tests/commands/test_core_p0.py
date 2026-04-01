@@ -1,5 +1,6 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
+from cascade.commands.base import CommandContext
 from cascade.commands.core.help import HelpCommand
 from cascade.commands.core.exit import ExitCommand
 from cascade.commands.core.clear import ClearCommand
@@ -8,45 +9,53 @@ from cascade.commands.router import CommandRouter
 
 @pytest.fixture
 def ctx():
-    """Minimal mock context for P0 command tests."""
-    mock = MagicMock()
-    mock.console = MagicMock()
-    mock.engine = MagicMock()
-    mock.engine.messages = [
+    """Minimal mock context simulating Textual mode (console=None)."""
+    repl = MagicMock()
+    repl.router = CommandRouter()
+    repl.router.register(HelpCommand())
+    repl.router.register(ExitCommand())
+    repl.router.register(ClearCommand())
+    repl.append_system_message = AsyncMock()
+
+    engine = MagicMock()
+    engine.messages = [
         {"role": "system", "content": "You are helpful."},
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi"},
     ]
-    mock.repl = MagicMock()
-    mock.repl.router = CommandRouter()
-    mock.repl.router.register(HelpCommand())
-    mock.repl.router.register(ExitCommand())
-    mock.repl.router.register(ClearCommand())
-    return mock
+
+    return CommandContext(
+        console=None,
+        engine=engine,
+        session=None,
+        repl=repl,
+    )
 
 
 @pytest.mark.asyncio
 async def test_help_runs_without_error(ctx):
     cmd = HelpCommand()
     await cmd.execute(ctx, "")
-    ctx.console.print.assert_called()
+    ctx.repl.append_system_message.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_help_shows_registered_commands(ctx):
-    """Help should call console.print with content that includes command names."""
+async def test_help_output_contains_commands(ctx):
+    """Help output should include registered command names."""
     cmd = HelpCommand()
     await cmd.execute(ctx, "")
-    # At least the table + tip = 2 print calls
-    assert ctx.console.print.call_count >= 2
+    output_text = ctx.repl.append_system_message.call_args[0][0]
+    assert "/help" in output_text
+    assert "/exit" in output_text
+    assert "/clear" in output_text
 
 
 @pytest.mark.asyncio
-async def test_exit_raises_system_exit(ctx):
+async def test_exit_calls_app_exit(ctx):
+    """In Textual mode, /exit calls repl.exit() instead of SystemExit."""
     cmd = ExitCommand()
-    with pytest.raises(SystemExit):
-        await cmd.execute(ctx, "")
-    ctx.console.print.assert_called()
+    await cmd.execute(ctx, "")
+    ctx.repl.exit.assert_called_once()
 
 
 @pytest.mark.asyncio

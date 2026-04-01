@@ -12,4 +12,9 @@ class ClearCommand(BaseCommand):
             ctx.engine.messages = ctx.engine.messages[:1]
         else:
             ctx.engine.messages = []
-        ctx.console.print("[#00d7af]✓ Conversation history cleared.[/#00d7af]")
+
+        # Also clear UI if in Textual mode
+        if hasattr(ctx.repl, 'action_clear_chat'):
+            ctx.repl.action_clear_chat()
+
+        await ctx.output("✓ Conversation history cleared.")

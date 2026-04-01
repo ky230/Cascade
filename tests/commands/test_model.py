@@ -1,10 +1,11 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
+from cascade.commands.base import CommandContext
 from cascade.commands.model.model import ModelCommand, PROVIDER_CATALOG
 
 
 def test_catalog_has_all_providers():
-    expected = {"deepseek", "grok", "glm", "anthropic", "gemini", "openai", "kimi", "qwen"}
+    expected = {"deepseek", "grok", "glm", "anthropic", "gemini", "openai", "kimi", "qwen", "minimax"}
     assert set(PROVIDER_CATALOG.keys()) == expected
 
 
@@ -23,41 +24,52 @@ def test_each_model_has_required_fields():
             assert "price" in m, f"{prov} model missing 'price'"
 
 
-@pytest.mark.asyncio
-async def test_model_quick_switch():
-    cmd = ModelCommand()
-    ctx = MagicMock()
-    ctx.engine = MagicMock()
-    ctx.engine.client.provider = "glm"
-    ctx.engine.client.model_name = "glm-4-flash"
+@pytest.fixture
+def model_ctx():
+    repl = MagicMock()
+    repl.append_system_message = AsyncMock()
+    engine = MagicMock()
+    engine.client.provider = "glm"
+    engine.client.model_name = "glm-4-flash"
+    return CommandContext(console=None, engine=engine, session=None, repl=repl)
 
-    await cmd.execute(ctx, "deepseek deepseek-chat")
+
+@pytest.mark.asyncio
+async def test_model_quick_switch(model_ctx):
+    cmd = ModelCommand()
+    await cmd.execute(model_ctx, "deepseek deepseek-chat")
     # Should have swapped the client
-    assert ctx.engine.client is not None
+    assert model_ctx.engine.client is not None
 
 
 @pytest.mark.asyncio
-async def test_model_quick_switch_unknown_provider():
+async def test_model_quick_switch_unknown_provider(model_ctx):
     cmd = ModelCommand()
-    ctx = MagicMock()
-    ctx.engine = MagicMock()
-    ctx.engine.client.provider = "glm"
-    ctx.engine.client.model_name = "glm-4-flash"
-
-    await cmd.execute(ctx, "nonexistent some-model")
-    # Should print error about unknown provider
-    call_args = str(ctx.console.print.call_args)
-    assert "Unknown provider" in call_args
+    await cmd.execute(model_ctx, "nonexistent some-model")
+    output = model_ctx.repl.append_system_message.call_args[0][0]
+    assert "Unknown provider" in output
 
 
 @pytest.mark.asyncio
-async def test_model_bad_args():
+async def test_model_bad_args(model_ctx):
     cmd = ModelCommand()
-    ctx = MagicMock()
-    ctx.engine = MagicMock()
-    ctx.engine.client.provider = "glm"
-    ctx.engine.client.model_name = "glm-4-flash"
+    await cmd.execute(model_ctx, "only-one-arg")
+    output = model_ctx.repl.append_system_message.call_args[0][0]
+    assert "Usage" in output
 
-    await cmd.execute(ctx, "only-one-arg")
-    call_args = str(ctx.console.print.call_args)
-    assert "Usage" in call_args
+
+@pytest.mark.asyncio
+async def test_model_numbered_selection(model_ctx):
+    cmd = ModelCommand()
+    await cmd.execute(model_ctx, "1")
+    output = model_ctx.repl.append_system_message.call_args[0][0]
+    assert "Switched to" in output
+
+
+@pytest.mark.asyncio
+async def test_model_display_table(model_ctx):
+    cmd = ModelCommand()
+    await cmd.execute(model_ctx, "")
+    output = model_ctx.repl.append_system_message.call_args[0][0]
+    assert "Switch Model" in output
+    assert "current" in output
