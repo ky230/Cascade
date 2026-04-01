@@ -58,17 +58,18 @@ async def interactive_chat(provider: str, model: str):
             print(middle)
             print(bottom, flush=True)
 
-            # Move cursor UP 2 lines and to the start of the line
+            # Move cursor UP 2 lines to the middle row, start of line
             sys.stdout.write("\033[2A\r")
             sys.stdout.flush()
 
-            # Construct readline-safe prompt (\x01 and \x02 mask non-printable ANSI characters)
-            P_DIM = f"\x01{DIM}\x02"
-            P_RESET = f"\x01{RESET}\x02"
-            P_LIGHT_CYAN_BOLD = f"\x01{LIGHT_CYAN}{BOLD}\x02"
-            prompt_str = f" {P_DIM}│{P_RESET} {P_LIGHT_CYAN_BOLD}>{P_RESET} "
-
-            user_input = input(prompt_str)
+            # Construct readline-safe prompt with \001 and \002 markers
+            # macOS libedit often strips 256-color (38;5) inside markers, so we use standard cyan (\033[36m)
+            CYAN_BASIC = "\033[36m"
+            prompt = (
+                f" \001{DIM}\002│\001{RESET}\002 "
+                f"\001{CYAN_BASIC}{BOLD}\002>\001{RESET}\002 "
+            )
+            user_input = input(prompt)
 
             # Move cursor DOWN 2 lines, past the bottom border
             sys.stdout.write("\033[2B")
