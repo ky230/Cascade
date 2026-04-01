@@ -100,8 +100,33 @@ cbf3e34  feat(api): add async stream extraction to ModelClient
 923af5e  feat(engine): implement base QueryEngine loop and TurnResult
 ```
 
-## Phase 4: Tool System ⏳
-*Pending*
+## Phase 4: Tool System ✅
+- **Completed:** 2026-04-01
+- **Branch:** `refactor/repl-architecture`
+
+### Changes
+- **BaseTool & ToolRegistry:** `src/cascade/tools/base.py` and `registry.py`
+  - Abstract `BaseTool` class with `execute()`, `get_input_schema()`, permissions, destructiveness flags
+  - `ToolRegistry` for registration, dispatch, and OpenAI-compatible JSON schema generation
+- **6 Core Tools implemented:**
+  - `BashTool` — shell execution with timeout and exit code tracking
+  - `FileReadTool` — read files with optional line range
+  - `FileWriteTool` — create/overwrite files
+  - `GrepTool` — grep -rnI wrapper with 50-match cap
+  - `GlobTool` — glob.glob wrapper with 100-file cap
+
+### Tests
+- `tests/test_tools_registry.py` — 4 tests PASSED
+- `tests/test_bash_tool.py` — 4 tests PASSED
+- `tests/test_file_search_tools.py` — 6 tests PASSED
+- **Full suite: 30/30 PASSED**
+
+### Commits
+```
+022da23  feat(tools): implement typed BaseTool and ToolRegistry
+29ae19a  feat(tools): implement robust BashTool with timeouts
+4eec946  feat(tools): implement FileRead, FileWrite, Grep, and Glob tools
+```
 
 ## Phase 5: Permission & Security ⏳
 *Pending*
