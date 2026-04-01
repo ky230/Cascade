@@ -4,6 +4,11 @@
 
 ---
 
+# [v0.2.0] - Foundation & Shell Architecture
+*The foundational rewrite establishing the 8-layer architecture, CLI loop, Reactive State, Tool Registry, and UI Streaming.*
+
+---
+
 ## Phase 0: Infrastructure & Cleanup ✅
 - **Completed:** 2026-04-01
 - **Branch:** `refactor/repl-architecture`
