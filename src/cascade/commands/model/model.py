@@ -1,8 +1,6 @@
 from cascade.commands.base import BaseCommand, CommandContext
 from cascade.services.api_client import ModelClient
 from cascade.ui.banner import render_status_bar
-from rich.table import Table
-from rich.prompt import Prompt
 import os
 
 
@@ -106,55 +104,128 @@ class ModelCommand(BaseCommand):
             ctx.console.print("[dim]Usage: /model <provider> <model> or just /model for picker[/dim]")
             return
 
-        # Interactive picker
-        table = Table(
-            title="[bold #5fd7ff]Switch Model[/bold #5fd7ff]",
-            show_header=True,
-            header_style="bold",
-            border_style="#5fd7ff",
-            expand=False,
-        )
-        table.add_column("#", style="bold #00d7af", width=4)
-        table.add_column("Provider", style="#0087ff")
-        table.add_column("Model", style="bold")
-        table.add_column("Price", style="dim")
+        # Interactive picker — inline Rich Table + arrow key cbreak mode
+        import asyncio
+        import sys
+        import tty
+        import termios
+        import select
+        from rich.table import Table
+        from rich.live import Live
+        from rich.console import Group
+        import threading
 
         choices = []
-        idx = 1
+        cursor = 0
+        
         for prov_key, prov_info in PROVIDER_CATALOG.items():
             api_key = os.getenv(prov_info["env_key"], "")
-            key_status = "[green]✓[/green]" if api_key else "[red]✗[/red]"
+            key_status = "[#00d7af]✓[/]" if api_key else "[dim]✗[/]"
             for m in prov_info["models"]:
                 is_current = (prov_key == current_provider and m["id"] == current_model)
-                marker = " [bold yellow]<< current[/bold yellow]" if is_current else ""
-                table.add_row(
-                    str(idx),
-                    f"{prov_info['display']} {key_status}",
-                    f"{m['label']} ({m['id']}){marker}",
-                    m["price"],
-                )
-                choices.append((prov_key, m["id"]))
-                idx += 1
+                if is_current:
+                    cursor = len(choices)
+                choices.append({
+                    "provider_display": f"{prov_info['display']} {key_status}",
+                    "model_label": m["label"],
+                    "model_id": m["id"],
+                    "price": m["price"],
+                    "is_current": is_current,
+                    "provider_key": prov_key,
+                })
 
-        ctx.console.print(table)
+        total = len(choices)
+        done = asyncio.Event()
+        cancelled = False
 
-        # Prompt for selection
-        selection = Prompt.ask(
-            "[#5fd7ff]Select number (or Enter to cancel)[/#5fd7ff]",
-            console=ctx.console,
-            default="",
-        )
+        def _get_renderable(current_cursor):
+            table = Table(
+                show_header=True,
+                header_style="bold #5fd7ff",
+                border_style="#5fd7ff",
+                expand=False,
+                padding=(0, 2),
+            )
+            table.add_column("", width=2)  # Pointer column
+            table.add_column("Provider", style="#0087ff")
+            table.add_column("Model", style="bold")
+            table.add_column("Price", style="dim")
 
-        if not selection.strip():
+            for i, c in enumerate(choices):
+                is_selected = (i == current_cursor)
+                
+                ptr = "[bold #00d7af]❯[/]" if is_selected else ""
+                prov_str = f"[bold #00d7af]{c['provider_display']}[/]" if is_selected else c["provider_display"]
+                
+                marker = " [bold #00d7af]← current[/]" if c["is_current"] else ""
+                    
+                model_col = f"[bold #5fd7ff]{c['model_label']} [dim]({c['model_id']})[/][/]{marker}" if is_selected else f"{c['model_label']} [dim]({c['model_id']})[/]{marker}"
+                price_col = f"[bold #00d7af]{c['price']}[/]" if is_selected else c["price"]
+
+                table.add_row(ptr, prov_str, model_col, price_col)
+
+            header = (
+                "[bold #5fd7ff]Select model[/bold #5fd7ff]\n"
+                "[dim]Switch between AI models. Applies to this session. Provide custom picks with [bold]/model <prov> <id>[/].\n"
+                "Supported providers: DeepSeek, xAI (Grok), Anthropic, Gemini, OpenAI, ZhipuAI, Kimi, and Qwen.\n\n"
+                "(↑↓ navigate • Enter confirm • Esc cancel)[/dim]"
+            )
+            
+            return Group(header, table)
+
+        def _read_keys(loop):
+            import os
+            nonlocal cursor, cancelled
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setcbreak(fd)
+                while not done.is_set():
+                    r, _, _ = select.select([fd], [], [], 0.5)
+                    if not r:
+                        continue
+                        
+                    # Use unbuffered OS read to prevent Py sys.stdin buffering issues with select
+                    b = os.read(fd, 3)
+                    if not b:
+                        continue
+                        
+                    if b == b'\x1b':
+                        cancelled = True
+                        loop.call_soon_threadsafe(done.set)
+                        return
+                    elif b in (b'\x1b[A', b'\x1bOA'):  # Up
+                        cursor = (cursor - 1) % total
+                    elif b in (b'\x1b[B', b'\x1bOB'):  # Down
+                        cursor = (cursor + 1) % total
+                    elif b in (b'\r', b'\n'):
+                        loop.call_soon_threadsafe(done.set)
+                        return
+                    elif b == b'\x03':  # Ctrl+C
+                        cancelled = True
+                        loop.call_soon_threadsafe(done.set)
+                        return
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+        loop = asyncio.get_event_loop()
+        key_thread = threading.Thread(target=_read_keys, args=(loop,), daemon=True)
+        key_thread.start()
+
+        # Render table inline. 
+        # When done.is_set(), the table will completely vanish because transient=True
+        with Live(_get_renderable(cursor), console=ctx.console, refresh_per_second=15, transient=True) as live:
+            while not done.is_set():
+                live.update(_get_renderable(cursor))
+                await asyncio.sleep(0.05)
+
+        key_thread.join(timeout=0.5)
+
+        if cancelled:
             ctx.console.print("[dim]Cancelled.[/dim]")
             return
 
-        try:
-            choice_idx = int(selection) - 1
-            if 0 <= choice_idx < len(choices):
-                new_provider, new_model = choices[choice_idx]
-                engine.client = ModelClient(provider=new_provider, model_name=new_model)
-            else:
-                ctx.console.print("[red]Invalid selection.[/red]")
-        except ValueError:
-            ctx.console.print("[red]Enter a number.[/red]")
+        selected_choice = choices[cursor]
+        engine.client = ModelClient(provider=selected_choice["provider_key"], model_name=selected_choice["model_id"])
+
+
