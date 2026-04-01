@@ -29,5 +29,9 @@ def get_litellm_kwargs(provider: str, model_name: str) -> dict:
         kwargs["model"] = f"openai/{model_name}"
         kwargs["api_base"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
         kwargs["api_key"] = os.getenv("DASHSCOPE_API_KEY")
+    elif provider == "grok":
+        kwargs["model"] = f"openai/{model_name}"
+        kwargs["api_base"] = "https://api.x.ai/v1"
+        kwargs["api_key"] = os.getenv("XAI_API_KEY")
 
     return kwargs
