@@ -17,7 +17,8 @@ from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.styles import Style
 
-from cascade.core.agent import Agent
+# TODO(phase3): Replace with cascade.engine.query.QueryEngine
+# from cascade.core.agent import Agent
 from cascade.ui.banner import render_banner_rich
 
 

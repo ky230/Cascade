@@ -7,10 +7,13 @@ name = "cascade"
 version = "0.1.0"
 description = "HEP Workflow Orchestrator"
 dependencies = [
-    "litellm>=1.0.0",
-    "python-dotenv>=1.0.0",
-    "prompt_toolkit>=3.0.0"
+    "anthropic>=0.40.0",
+    "openai>=1.55.0",
+    "zhipuai>=2.1.5.20230904",
+    "python-dotenv>=1.0.1",
+    "rich>=13.0.0",
+    "prompt_toolkit>=3.0.43"
 ]
 
 [project.scripts]
-cascade = "cascade.cli:main"
+cascade = "cascade.cli.main:main"
