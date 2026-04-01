@@ -65,8 +65,8 @@ async def interactive_chat(provider: str, model: str):
             # Construct readline-safe prompt (\x01 and \x02 mask non-printable ANSI characters)
             P_DIM = f"\x01{DIM}\x02"
             P_RESET = f"\x01{RESET}\x02"
-            P_CYAN_BOLD = f"\x01{CYAN}{BOLD}\x02"
-            prompt_str = f" {P_DIM}│{P_RESET} {P_CYAN_BOLD}>{P_RESET} "
+            P_LIGHT_CYAN_BOLD = f"\x01{LIGHT_CYAN}{BOLD}\x02"
+            prompt_str = f" {P_DIM}│{P_RESET} {P_LIGHT_CYAN_BOLD}>{P_RESET} "
 
             user_input = input(prompt_str)
 
