@@ -12,7 +12,8 @@ dependencies = [
     "zhipuai>=2.1.5.20230904",
     "python-dotenv>=1.0.1",
     "rich>=13.0.0",
-    "prompt_toolkit>=3.0.43"
+    "prompt_toolkit>=3.0.43",
+    "click>=8.1.7"
 ]
 
 [project.scripts]
