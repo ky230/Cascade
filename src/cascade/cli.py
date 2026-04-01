@@ -79,7 +79,7 @@ async def interactive_chat(provider: str, model: str):
             elapsed = spinner.stop()
 
             # Colored response
-            print(f"\n{BLUE}{BOLD}Cascade>{RESET} {response}")
+            print(f"\n{BLUE}{BOLD}✦ Cascade{RESET}  {response}")
             print(f"{DIM}({elapsed:.1f}s){RESET}\n")
 
         except KeyboardInterrupt:
