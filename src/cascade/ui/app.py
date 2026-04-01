@@ -141,18 +141,18 @@ class CascadeRepl:
                     spinner = Spinner(message="Generating")
                     spinner.start()
 
-                result = await self.engine.submit(
-                    user_input, 
-                    on_token=on_token,
-                    on_tool_start=handle_tool_start,
-                    on_tool_end=handle_tool_end
-                )
-                
-                if spinner._task is not None:
-                    spinner.stop()
-                    
-                if live is not None:
-                    live.stop()
+                try:
+                    result = await self.engine.submit(
+                        user_input, 
+                        on_token=on_token,
+                        on_tool_start=handle_tool_start,
+                        on_tool_end=handle_tool_end
+                    )
+                finally:
+                    if spinner._task is not None:
+                        spinner.stop()
+                    if live is not None:
+                        live.stop()
 
                 self.console.print()
 
