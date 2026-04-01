@@ -135,6 +135,57 @@ async def test_query_engine_tool_call_loop():
 
 
 @pytest.mark.asyncio
+async def test_query_engine_permission_denied():
+    """When PermissionEngine denies a tool, result should show permission error."""
+    from cascade.services.api_client import StreamResult
+    from cascade.tools.base import BaseTool, ToolResult
+    from cascade.tools.registry import ToolRegistry
+    from cascade.permissions.engine import PermissionEngine, PermissionMode
+
+    client = ModelClient("openai", "gpt-4o")
+    registry = ToolRegistry()
+
+    class DangerTool(BaseTool):
+        @property
+        def name(self): return "danger_tool"
+        @property
+        def description(self): return "dangerous"
+        @property
+        def is_read_only(self): return False
+        @property
+        def is_destructive(self): return True
+        async def execute(self, **kwargs): return ToolResult(output="should not reach")
+        def get_input_schema(self): return {"type": "object", "properties": {}}
+
+    registry.register(DangerTool())
+    # DEFAULT mode with no ask_user → should deny non-read-only tools
+    permissions = PermissionEngine(mode=PermissionMode.DEFAULT)
+
+    call_count = 0
+    async def mock_stream_full(messages, tools=None, on_token=None):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return StreamResult(
+                text="", tool_calls=[{"id": "c1", "name": "danger_tool", "arguments": {}}],
+                finish_reason="tool_calls",
+            )
+        else:
+            if on_token:
+                on_token("Permission was denied")
+            return StreamResult(text="Permission was denied", tool_calls=[], finish_reason="stop")
+
+    client.stream_full = mock_stream_full
+
+    engine = QueryEngine(client, QueryEngineConfig(), registry=registry, permissions=permissions)
+    result = await engine.submit("do danger")
+
+    assert len(result.tool_uses) == 1
+    assert result.tool_uses[0]["is_error"] is True
+    assert "denied" in result.tool_uses[0]["result"].lower() or "permission" in result.tool_uses[0]["result"].lower()
+
+
+@pytest.mark.asyncio
 async def test_query_engine_no_tools_still_works():
     """Engine without registry should work like before (text-only)."""
     from cascade.services.api_client import StreamResult

@@ -5,6 +5,7 @@ from typing import List, Dict, Optional, Callable, Any
 from cascade.services.api_client import ModelClient, StreamResult
 from cascade.tools.registry import ToolRegistry
 from cascade.tools.base import ToolResult
+from cascade.permissions.engine import PermissionEngine
 
 
 @dataclass
@@ -30,11 +31,13 @@ class QueryEngine:
         client: ModelClient,
         config: QueryEngineConfig | None = None,
         registry: ToolRegistry | None = None,
+        permissions: PermissionEngine | None = None,
     ):
         self.client = client
         self.config = config or QueryEngineConfig()
         self.messages: List[Dict] = []
         self.registry = registry
+        self.permissions = permissions
 
     def set_system_prompt(self, prompt: str) -> None:
         if self.messages and self.messages[0].get("role") == "system":
@@ -95,6 +98,31 @@ class QueryEngine:
 
                 if on_tool_start:
                     on_tool_start(tool_name, tool_args)
+
+                # Permission check
+                if self.permissions and self.registry:
+                    tool_obj = self.registry.get(tool_name)
+                    if tool_obj:
+                        perm = await self.permissions.check(tool_obj, tool_args)
+                        if not perm.allowed:
+                            tool_result = ToolResult(
+                                output=f"Permission denied: {perm.reason}",
+                                is_error=True,
+                            )
+                            if on_tool_end:
+                                on_tool_end(tool_name, tool_result)
+                            all_tool_uses.append({
+                                "name": tool_name,
+                                "input": tool_args,
+                                "result": tool_result.output,
+                                "is_error": tool_result.is_error,
+                            })
+                            self.messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_id,
+                                "content": tool_result.output,
+                            })
+                            continue
 
                 if self.registry:
                     tool_result = await self.registry.execute(tool_name, tool_args)
