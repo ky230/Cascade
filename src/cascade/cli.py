@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from cascade.core.agent import Agent
 from cascade.ui.banner import render_banner, render_status_bar
 from cascade.ui.spinner import Spinner
-from cascade.ui.colors import BLUE, CYAN, DIM, RED, RESET, BOLD
+from cascade.ui.colors import BLUE, CYAN, LIGHT_CYAN, DIM, RED, RESET, BOLD
 
 
 def main():
@@ -79,7 +79,7 @@ async def interactive_chat(provider: str, model: str):
             elapsed = spinner.stop()
 
             # Colored response
-            print(f"\n{BLUE}{BOLD}✦ Cascade{RESET}  {response}")
+            print(f"\n{LIGHT_CYAN}{BOLD}✧ Cascade{RESET}  {response}")
             print(f"{DIM}({elapsed:.1f}s){RESET}\n")
 
         except KeyboardInterrupt:
