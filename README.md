@@ -1,6 +1,5 @@
-<p align="center">
-  <img src="assets/cascade-logo.gif" alt="Cascade" width="900" />
-</p>
+<!-- TODO: 用户自行录屏后通过 GitHub 网页端上传 -->
+<h1 align="center">CASCADE</h1>
 
 <p align="center">
   <strong>LLM 驱动的高能物理工作流编排框架</strong>
