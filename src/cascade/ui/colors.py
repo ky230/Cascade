@@ -3,6 +3,7 @@
 # Deep Sea Blue → Cyan palette
 BLUE = "\033[38;5;33m"       # DodgerBlue — primary brand
 CYAN = "\033[38;5;44m"       # DarkCyan — accent
+LIGHT_BLUE = "\033[94m"      # Bright Blue — enclosing box
 LIGHT_CYAN = "\033[38;5;87m" # SkyBlue — highlights
 DIM = "\033[38;5;245m"       # Gray — secondary text
 RED = "\033[38;5;196m"       # Bright red — errors

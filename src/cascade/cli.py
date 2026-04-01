@@ -41,45 +41,66 @@ async def interactive_chat(provider: str, model: str):
 
     agent = Agent(provider=provider, model_name=model)
 
+    from prompt_toolkit import PromptSession, HTML
+    from prompt_toolkit.styles import Style
+    import os
+
+    # Gemini-like UI Style
+    pt_style = Style.from_dict({
+        'border': 'ansibrightblue',       # LIGHT_BLUE box borders
+        'prompt': 'ansicyan bold',        # Cyan '>'
+        'placeholder': 'ansiteal',        # Dim placeholder text
+        'status-bar': 'ansigray',         # Dim text for status
+    })
+
+    session = PromptSession(style=pt_style)
+    cwd = os.getcwd()
+
     while True:
         try:
-            # Calculate exactly the same width as the status bar for a unified look
+            # Fixed width mimicking the status banner
             left_clean = f" ⚛  HEP Agentic Orchestrator v0.1.0 "
             sep_clean = " │ "
             right_clean = f" {provider}  ──  {model} "
             width = len(left_clean) + len(sep_clean) + len(right_clean)
 
-            # Input box — fully enclosed before typing
-            top    = f" {DIM}╭{'─' * width}╮{RESET}"
-            middle = f" {DIM}│{RESET}{' ' * width}{DIM}│{RESET}"
-            bottom = f" {DIM}╰{'─' * width}╯{RESET}"
+            # Manually print the top border before prompt
+            top_border = f" \033[94m╭{'─' * width}╮\033[0m"
+            print(top_border)
 
-            print(top)
-            print(middle)
-            print(bottom, flush=True)
+            # Provide the bottom border and status bar via the bottom_toolbar,
+            # which prompt_toolkit places at the bottom of the terminal window,
+            # ensuring a stable UI without backspace ripping the borders.
+            def get_bottom_toolbar():
+                # Shorten CWD to match screenshot style "~\..."
+                home = os.path.expanduser("~")
+                display_cwd = cwd.replace(home, "~")
+                if len(display_cwd) > 25:
+                    display_cwd = "..." + display_cwd[-22:]
+                
+                # We calculate padding to fit the status bar neatly under the ~60 char box
+                # or we just use simple 5-space padding.
+                return HTML(f"<border> ╰{'─' * width}╯</border>\n<status-bar>  {display_cwd}      no sandbox (see /docs)      auto </status-bar>")
 
-            # Move cursor UP 2 lines to the middle row, start of line
-            sys.stdout.write("\033[2A\r")
-            sys.stdout.flush()
-
-            # Construct readline-safe prompt with \001 and \002 markers
-            # macOS libedit often strips 256-color (38;5) inside markers, so we use standard cyan (\033[36m)
-            CYAN_BASIC = "\033[36m"
-            prompt = (
-                f" \001{DIM}\002│\001{RESET}\002 "
-                f"\001{CYAN_BASIC}{BOLD}\002>\001{RESET}\002 "
+            # The actual interactive input. We use HTML to colorize the left margin & prompt
+            user_input = session.prompt(
+                HTML("<border> │ </border><prompt>&gt; </prompt>"),
+                placeholder="Type your message or @path/to/file",
+                bottom_toolbar=get_bottom_toolbar,
+                wrap_lines=True
             )
-            user_input = input(prompt)
-
-            # Move cursor DOWN 2 lines, past the bottom border
-            sys.stdout.write("\033[2B")
-            sys.stdout.flush()
 
             if user_input.lower() in ["exit", "quit"]:
                 print(f"\n{DIM}Exiting Cascade. Goodbye! 👋{RESET}")
                 break
             if not user_input.strip():
+                # On empty input, we should reprint a dummy bottom border so history looks solid
+                print(f" \033[94m╰{'─' * width}╯\033[0m", flush=True)
                 continue
+
+            # When input is submitted, the bottom toolbar from prompt_toolkit disappears.
+            # To leave a clean chat log "box", we print the bottom border manually!
+            print(f" \033[94m╰{'─' * width}╯\033[0m\n", flush=True)
 
             # Spinner during API call
             spinner = Spinner(message="Thinking")
@@ -90,7 +111,7 @@ async def interactive_chat(provider: str, model: str):
             elapsed = spinner.stop()
 
             # Colored response
-            print(f"\n{LIGHT_CYAN}{BOLD}✧ Cascade{RESET}  {response}")
+            print(f"{LIGHT_CYAN}{BOLD}✧ Cascade{RESET}  {response}")
             print(f"{DIM}({elapsed:.1f}s){RESET}\n")
 
         except KeyboardInterrupt:
