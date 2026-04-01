@@ -147,5 +147,27 @@ cbf3e34  feat(api): add async stream extraction to ModelClient
 1a99887  feat(permissions): implement mode-based PermissionEngine (Auto/Ask/Bypass)
 ```
 
-## Phase 6: UI Rendering Integration ⏳
-*Pending*
+## Phase 6: UI Rendering Integration ✅
+- **Completed:** 2026-04-01
+- **Branch:** `refactor/repl-architecture`
+
+### Changes
+- **MessageRenderer:** Created `src/cascade/ui/renderer.py`
+  - Leverages `rich` to render Markdown `Panel` blocks for tool uses and tool results.
+  - Implements formatted presentation layers (`render_assistant`, `render_tool_result`).
+- **CascadeRepl Application Wire-up:** `src/cascade/ui/app.py`
+  - Re-introduced the interactive REPL using `prompt_toolkit`.
+  - Instantiates and binds `Provider/ModelClient`, `QueryEngine`, `ToolRegistry`, and `PermissionEngine`.
+  - Captures streaming tokens and dynamically visualizes the generation live using `rich.live.Live`.
+- **Command Update:** `src/cascade/cli/commands/chat.py`
+  - Bootstraps the application via `CascadeRepl`.
+
+### Tests
+- `tests/test_renderer.py` — 2 tests PASSED 
+- **Full suite: 37/37 PASSED**
+
+### Commits
+```
+a550d04  feat(ui): implement Rich Markdown renderer for Assistant and Tools
+87c15dc  feat(ui): wire up CascadeRepl to use QueryEngine and Streaming
+```
