@@ -141,12 +141,30 @@ class CascadeRepl:
                     spinner = Spinner(message="Generating")
                     spinner.start()
 
+                async def ask_user_callback(prompt_msg: str) -> bool:
+                    nonlocal live, spinner
+                    if live is not None:
+                        live.stop()
+                    if spinner._task is not None:
+                        spinner.stop()
+                    
+                    self.console.print()
+                    ans = await self.session.prompt_async(
+                        HTML(f"<style fg='#ff5f00' bold='true'>⚠️  {prompt_msg}</style> ")
+                    )
+                    
+                    spinner = Spinner(message="Generating")
+                    spinner.start()
+                    
+                    return ans.strip().lower() in ['y', 'yes']
+
                 try:
                     result = await self.engine.submit(
                         user_input, 
                         on_token=on_token,
                         on_tool_start=handle_tool_start,
-                        on_tool_end=handle_tool_end
+                        on_tool_end=handle_tool_end,
+                        ask_user=ask_user_callback
                     )
                 finally:
                     if spinner._task is not None:

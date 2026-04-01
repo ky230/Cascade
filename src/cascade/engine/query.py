@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Callable, Any
+from typing import List, Dict, Optional, Callable, Any, Awaitable
 from cascade.services.api_client import ModelClient, StreamResult
 from cascade.tools.registry import ToolRegistry
 from cascade.tools.base import ToolResult
@@ -51,6 +51,7 @@ class QueryEngine:
         on_token: Callable[[str], None] | None = None,
         on_tool_start: Callable[[str, dict], None] | None = None,
         on_tool_end: Callable[[str, ToolResult], None] | None = None,
+        ask_user: Callable[[str], Awaitable[bool]] | None = None,
     ) -> TurnResult:
         """Process a user message through the agentic tool loop."""
         self.messages.append({"role": "user", "content": user_input})
@@ -103,7 +104,7 @@ class QueryEngine:
                 if self.permissions and self.registry:
                     tool_obj = self.registry.get(tool_name)
                     if tool_obj:
-                        perm = await self.permissions.check(tool_obj, tool_args)
+                        perm = await self.permissions.check(tool_obj, tool_args, ask_user=ask_user)
                         if not perm.allowed:
                             tool_result = ToolResult(
                                 output=f"Permission denied: {perm.reason}",
