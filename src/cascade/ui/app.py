@@ -60,7 +60,11 @@ class CascadeRepl:
         self.router.register(ExitCommand())
         self.router.register(ClearCommand())
 
-        # Cascade theme for completion dropdown
+        # --- Register Model commands ---
+        from cascade.commands.model.model import ModelCommand
+        self.router.register(ModelCommand())
+
+        # Cascade theme for completion dropdown + toolbar
         _ptk_style = PTKStyle.from_dict({
             # Completion menu body
             'completion-menu':                'bg:#1a1a2e',
@@ -72,6 +76,9 @@ class CascadeRepl:
             # Scrollbar
             'scrollbar.background':           'bg:#1a1a2e',
             'scrollbar.button':               'bg:#005fff',
+            # Bottom toolbar
+            'bottom-toolbar':                 'bg:default noreverse',
+            'bottom-toolbar.text':            'bg:default noreverse',
         })
 
         self.session = PromptSession(
@@ -115,9 +122,20 @@ class CascadeRepl:
             try:
                 with patch_stdout():
                     prompt_ui = HTML("\n<style fg='#5fd7ff' bold='true'>❯</style> ")
+
+                    def _toolbar():
+                        import shutil
+                        prov = self.engine.client.provider
+                        mdl = self.engine.client.model_name
+                        
+                        return HTML(
+                            f"<style fg='#777777'>model</style> <style fg='#0087ff'>{prov}</style> <style fg='#555555'>──</style> <style fg='#00d7af'>{mdl}</style> "
+                        )
+
                     user_input = await self.session.prompt_async(
                         prompt_ui,
-                        prompt_continuation=self.prompt_continuation
+                        prompt_continuation=self.prompt_continuation,
+                        bottom_toolbar=_toolbar,
                     )
                     
                 if not user_input.strip():
