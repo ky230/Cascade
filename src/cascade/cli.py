@@ -2,6 +2,10 @@ import argparse
 import asyncio
 import os
 import sys
+try:
+    import readline
+except ImportError:
+    pass
 from dotenv import load_dotenv
 from cascade.core.agent import Agent
 from cascade.ui.banner import render_banner, render_status_bar
