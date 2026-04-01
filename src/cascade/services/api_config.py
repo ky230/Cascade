@@ -33,5 +33,9 @@ def get_litellm_kwargs(provider: str, model_name: str) -> dict:
         kwargs["model"] = f"openai/{model_name}"
         kwargs["api_base"] = "https://api.x.ai/v1"
         kwargs["api_key"] = os.getenv("XAI_API_KEY")
+    elif provider == "minimax":
+        kwargs["model"] = f"openai/{model_name}"
+        kwargs["api_base"] = "https://api.minimaxi.com/v1"
+        kwargs["api_key"] = os.getenv("MINIMAX_API_KEY")
 
     return kwargs

@@ -14,6 +14,20 @@ PROVIDER_CATALOG = {
             {"id": "deepseek-reasoner", "label": "DeepSeek-V3.2 (Reasoner)", "price": "¥2.00/M in (¥0.20 hit), ¥3.00/M out"},
         ],
     },
+    "gemini": {
+        "display": "Google Gemini",
+        "env_key": "GEMINI_API_KEY",
+        "models": [
+            {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
+            {"id": "gemini-3.1-pro-preview-customtools", "label": "Gemini 3.1 Pro (Tools)", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
+            {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash Lite Preview", "price": "Free account: free (limited); Paid account: $0.125/M in, $0.75/M out"},
+            {"id": "gemini-3.1-flash-image-preview", "label": "Gemini 3.1 Flash Image 🎨", "price": "Paid account only: ~$0.076/image (4K)"},
+            {"id": "gemini-3-pro-preview", "label": "Gemini 3 Pro Preview", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
+            {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview", "price": "$0.50/M in, $3.00/M out; Paid account -50% extra"},
+            {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "price": "≤200K: $1.25/M in, $10/M out; >200K: $2.50/M in, $15/M out; Paid account -50% extra"},
+            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "price": "$0.30/M in, $2.50/M out; Paid account -50% extra"},
+        ],
+    },
     "grok": {
         "display": "xAI (Grok)",
         "env_key": "XAI_API_KEY",
@@ -23,55 +37,68 @@ PROVIDER_CATALOG = {
             {"id": "grok-4.20-multi-agent-0309", "label": "Grok 4.20 (Multi-Agent)", "price": "$2.00/M in, $6.00/M out"},
             {"id": "grok-4-1-fast-reasoning", "label": "Grok 4.1 Fast (Reasoning)", "price": "$0.20/M in, $0.50/M out"},
             {"id": "grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast", "price": "$0.20/M in, $0.50/M out"},
-            {"id": "grok-imagine-image-pro", "label": "Grok Image Pro", "price": "$0.07 / image"},
-        ],
-    },
-    "glm": {
-        "display": "ZhipuAI (GLM)",
-        "env_key": "GLM_API_KEY",
-        "models": [
-            {"id": "glm-4-flash", "label": "GLM-4 Flash", "price": "Free"},
-            {"id": "glm-4.6", "label": "GLM-4.6", "price": "$0.07/M"},
-        ],
-    },
-    "anthropic": {
-        "display": "Anthropic",
-        "env_key": "ANTHROPIC_API_KEY",
-        "models": [
-            {"id": "claude-sonnet-4-20250514", "label": "Sonnet 4", "price": "$3/M in, $15/M out"},
-            {"id": "claude-opus-4-20250514", "label": "Opus 4", "price": "$15/M in, $75/M out"},
-        ],
-    },
-    "gemini": {
-        "display": "Google Gemini",
-        "env_key": "GEMINI_API_KEY",
-        "models": [
-            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "price": "$0.15/M in"},
-            {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "price": "$1.25/M in, $10/M out"},
-        ],
-    },
-    "openai": {
-        "display": "OpenAI",
-        "env_key": "OPENAI_API_KEY",
-        "models": [
-            {"id": "gpt-4o", "label": "GPT-4o", "price": "$2.50/M in, $10/M out"},
-            {"id": "gpt-4o-mini", "label": "GPT-4o Mini", "price": "$0.15/M in, $0.60/M out"},
-            {"id": "o3-mini", "label": "o3-mini", "price": "$1.10/M in, $4.40/M out"},
+            {"id": "grok-imagine-image-pro", "label": "Grok Image Pro 🎨", "price": "$0.07 / image"},
         ],
     },
     "kimi": {
         "display": "Moonshot (Kimi)",
         "env_key": "MOONSHOT_API_KEY",
         "models": [
-            {"id": "moonshot-v1-auto", "label": "Kimi Auto", "price": "CN pricing"},
+            {"id": "kimi-k2.5", "label": "Kimi K2.5", "price": "¥4.00/M in, ¥21.00/M out"},
+            {"id": "moonshot-v1-128k", "label": "Kimi 128K", "price": "¥10.00/M in, ¥30.00/M out"},
+            {"id": "moonshot-v1-128k-vision-preview", "label": "Kimi 128K Vision", "price": "¥10.00/M in, ¥30.00/M out"},
+        ],
+    },
+    "glm": {
+        "display": "ZhipuAI (GLM)",
+        "env_key": "GLM_API_KEY",
+        "models": [
+            {"id": "glm-5.1", "label": "GLM-5.1", "price": "Need GLM Coding Plan"},
+            {"id": "glm-5-turbo", "label": "GLM-5 Turbo", "price": "¥5/M in, ¥22/M out; >32K: ¥7/M in, ¥26/M out"},
+            {"id": "glm-5", "label": "GLM-5", "price": "¥4/M in, ¥18/M out; >32K: ¥6/M in, ¥22/M out"},
+            {"id": "glm-4.7", "label": "GLM-4.7", "price": "¥2/M in, ¥8/M out; >32K: ¥4/M in, ¥16/M out"},
+            {"id": "glm-4.6", "label": "GLM-4.6", "price": "¥2/M in, ¥8/M out"},
+            {"id": "glm-4.5", "label": "GLM-4.5", "price": "¥2/M in, ¥8/M out"},
+            {"id": "glm-4.5-air", "label": "GLM-4.5 Air", "price": "¥0.80/M in, ¥2/M out"},
+            {"id": "glm-4-flash", "label": "GLM-4 Flash", "price": "Free"},
+        ],
+    },
+    "minimax": {
+        "display": "MiniMax",
+        "env_key": "MINIMAX_API_KEY",
+        "models": [
+            {"id": "MiniMax-M2.7", "label": "MiniMax M2.7", "price": "$0.30/M in, $1.20/M out"},
+            {"id": "MiniMax-M2.7-highspeed", "label": "MiniMax M2.7 HS", "price": "$0.60/M in, $2.40/M out"},
+            {"id": "MiniMax-M2.5", "label": "MiniMax M2.5", "price": "$0.30/M in, $1.20/M out"},
+            {"id": "MiniMax-M2.5-highspeed", "label": "MiniMax M2.5 HS", "price": "$0.60/M in, $2.40/M out"},
         ],
     },
     "qwen": {
         "display": "Alibaba Qwen",
         "env_key": "DASHSCOPE_API_KEY",
         "models": [
-            {"id": "qwen-plus", "label": "Qwen Plus", "price": "CN pricing"},
-            {"id": "qwen-turbo", "label": "Qwen Turbo", "price": "CN pricing"},
+            {"id": "qwen3.5-flash", "label": "Qwen 3.5 Flash", "price": "¥0.20/M in, ¥0.80/M out"},
+            {"id": "qwen3.5-plus", "label": "Qwen 3.5 Plus", "price": "¥0.80/M in, ¥2.00/M out"},
+            {"id": "qwen3-coder-plus", "label": "Qwen3 Coder Plus", "price": "~¥0.80/M in, ~¥2.00/M out"},
+        ],
+    },
+    "anthropic": {
+        "display": "Anthropic",
+        "env_key": "ANTHROPIC_API_KEY",
+        "models": [
+            {"id": "claude-opus-4-6", "label": "Opus 4.6", "price": "$5/M in, $25/M out"},
+            {"id": "claude-sonnet-4-6", "label": "Sonnet 4.6", "price": "$3/M in, $15/M out"},
+            {"id": "claude-haiku-4-5-20251001", "label": "Haiku 4.5", "price": "$1/M in, $5/M out"},
+        ],
+    },
+    "openai": {
+        "display": "OpenAI",
+        "env_key": "OPENAI_API_KEY",
+        "models": [
+            {"id": "gpt-5.4", "label": "GPT-5.4", "price": "$2.50/M in, $15/M out"},
+            {"id": "gpt-5.4-pro", "label": "GPT-5.4 Pro", "price": "$30/M in, $180/M out"},
+            {"id": "gpt-5.4-mini", "label": "GPT-5.4 Mini", "price": "$0.75/M in, $4.50/M out"},
+            {"id": "gpt-5.4-nano", "label": "GPT-5.4 Nano", "price": "$0.20/M in, $1.25/M out"},
         ],
     },
 }
@@ -167,7 +194,8 @@ class ModelCommand(BaseCommand):
             header = (
                 "[bold #5fd7ff]Select model[/bold #5fd7ff]\n"
                 "[dim]Switch between AI models. Applies to this session. Provide custom picks with [bold]/model <prov> <id>[/].\n"
-                "Supported providers: DeepSeek, xAI (Grok), Anthropic, Gemini, OpenAI, ZhipuAI, Kimi, and Qwen.\n\n"
+                "Supported providers: DeepSeek, xAI (Grok), Anthropic, Gemini, OpenAI, ZhipuAI, Kimi, and Qwen.\n"
+                "All pricing & availability info last queried on 2026/04/02.\n\n"
                 "(↑↓ navigate • Enter confirm • Esc cancel)[/dim]"
             )
             
