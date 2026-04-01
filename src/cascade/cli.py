@@ -27,6 +27,8 @@ def main():
 
 
 async def interactive_chat(provider: str, model: str):
+    import shutil
+
     # Welcome banner
     print(render_banner())
     print(render_status_bar(provider, model))
@@ -36,7 +38,12 @@ async def interactive_chat(provider: str, model: str):
 
     while True:
         try:
-            user_input = input(f"\n{CYAN}{BOLD}>{RESET} ")
+            # Input box
+            width = min(shutil.get_terminal_size().columns - 2, 80)
+            print(f"{DIM}╭{'─' * width}╮{RESET}")
+            user_input = input(f"{DIM}│{RESET} {CYAN}{BOLD}>{RESET} ")
+            print(f"{DIM}╰{'─' * width}╯{RESET}")
+
             if user_input.lower() in ["exit", "quit"]:
                 print(f"\n{DIM}Exiting Cascade. Goodbye! 👋{RESET}")
                 break
