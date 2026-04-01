@@ -1,5 +1,9 @@
 <!-- TODO: 用户自行录屏后通过 GitHub 网页端上传 -->
-<h1 align="center">CASCADE</h1>
+
+
+https://github.com/user-attachments/assets/1b2cf25c-f72c-44da-9da9-26d12bad0602
+
+
 
 <p align="center">
   <strong>LLM 驱动的高能物理工作流编排框架</strong>
