@@ -16,4 +16,4 @@ This document serves as the high-level ledger of completed development phases fo
 
 ## Phase 2b: CLI Visual Polish
 - **Completed:** 2026-04-01
-- **Achievements:** Added fused ASCII art banner (particle cascade graph + ANSI Shadow block letters + dynamic metadata box with ⚛ atom icon), async loading spinner with elapsed timer, ANSI 256-color system (Deep Sea Blue → Cyan gradient palette) with hierarchical coloring, minimalist `>` prompt in brand cyan, and red error output. Zero external dependencies — pure Python stdlib ANSI rendering. Inspired by Claude Code and Gemini CLI design patterns.
+- **Achievements:** Added fused ASCII art banner (particle cascade graph + ANSI Shadow block letters + dynamic metadata box with ⚛ atom icon), async loading spinner with elapsed timer, ANSI 256-color system (Deep Sea Blue → Cyan gradient palette) with hierarchical coloring, fully enclosed interactive input box, minimalist `>` prompt, bright cyan `✧ Cascade` AI prefix, and red error output. Zero external dependencies — pure Python stdlib ANSI rendering. Inspired by Claude Code and Gemini CLI design patterns.
