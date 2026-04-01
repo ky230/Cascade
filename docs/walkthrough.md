@@ -55,8 +55,27 @@
 8cc76fb  feat(bootstrap): HEP environment detection and system prompt builder
 ```
 
-## Phase 2: Reactive State & API Streaming ⏳
-*Pending*
+## Phase 2: Reactive State & API Streaming ✅
+- **Completed:** 2026-04-01
+- **Branch:** `refactor/repl-architecture`
+
+### Changes
+- **Immutable AppState and Reactive Store:**
+  - Created `src/cascade/state/app_state.py` containing the `AppState` dataclass.
+  - Created `src/cascade/state/store.py` with subscriber logic (`subscribe`/`set_state`/`get_state`).
+- **API Streaming Support:**
+  - Added `src/cascade/services/api_config.py` with `get_litellm_kwargs` for multi-provider API proxying.
+  - Implemented `src/cascade/services/api_client.py` with the asynchronous `ModelClient.stream(...)` generator.
+
+### Tests
+- `tests/test_state.py` — 3 tests PASSED (`test_store_get_set`, `test_store_subscribe`, `test_store_unsubscribe`)
+- `tests/test_api_client.py` — 1 test PASSED (`test_api_client_stream`)
+
+### Commits
+```
+555a58f  feat(state): implement immutable AppState and reactive Store
+cbf3e34  feat(api): add async stream extraction to ModelClient
+```
 
 ## Phase 3: Core Query Engine ⏳
 *Pending*
