@@ -9,7 +9,9 @@
 - **Language**: Python (asyncio-first)
 - **Target Environment**: Direct execution on HPC clusters (e.g., CERN `lxplus`, PKU `ab-node05`), leveraging Condor and GPUs.
 - **Parallelism Strategy**: `tmux` backend for running decoupled agentic tasks in parallel terminal panes.
-- **LLM Integration**: Custom abstraction layer designed to support multiple models (initially GLM-5.1), decoupling the framework from specific API constraints like OpenAI/Anthropic.
+- **LLM Integration**: `litellm` acts as the universal routing mesh, enabling fallback and standardized API communication across OpenAI, Anthropic, Gemini, and localized Chinese models.
+- **Agent Core**: The `Agent` class (`cascade.core.agent`) maintains localized multi-turn conversation memory (`List[Dict]`) for contextual workflow planning.
+- **CLI & UI Framework**: Zero-dependency pure Python terminal interface (`cascade chat`). Employs `argparse`, `asyncio`, and a custom ANSI rendering layer (`cascade.ui`) to deliver a modern, premium user experience (animated spinners, gradient banners) without third-party UI bloat.
 
 ## 3. Harness Engineering Patterns
 Cascade implements the five core patterns of harness engineering:
@@ -20,6 +22,7 @@ Cascade implements the five core patterns of harness engineering:
 5. **Inversion**: Pauses execution to actively query the human physicist for missing topological parameters or critical decisions.
 
 ## 4. Memory Management Rule
-- **Long-term/Global context**: Maintain and update `ARCHITECTURE.md` (this file).
-- **Short-term/Task context**: Save atomic implementation plans to `docs/plans/YYYY-MM-DD-<feature>.md`.
+- **Long-term/Global context**: Maintain and update `ARCHITECTURE.md` (this file) strictly reflecting current structural realities.
+- **Project Ledgers (Macro)**: Record verified phase completions and high-level progression in `docs/walkthrough.md`.
+- **Short-term/Task context (Micro)**: Save granular, atomic TDD implementation plans to `docs/plans/YYYY-MM-DD-<feature>.md` prior to code generation.
 - **Changelog**: Use `git log` and descriptive commit messages for precise diff history.
