@@ -45,7 +45,7 @@ class CascadeRepl:
         def prompt_continuation(width, line_number, is_soft_wrap):
             return HTML("<style fg='#5fd7ff' bold='true'>│  </style>")
 
-        self.session = PromptSession(key_bindings=kb)
+        self.session = PromptSession(key_bindings=kb, erase_when_done=True)
         self.prompt_continuation = prompt_continuation
 
         
@@ -77,23 +77,27 @@ class CascadeRepl:
         while True:
             try:
                 with patch_stdout():
-                    prompt_ui = HTML("\n<style fg='#5fd7ff' bold='true'>╭─</style>\n<style fg='#5fd7ff' bold='true'>│ ❯</style> ")
+                    prompt_ui = HTML("\n<style fg='#5fd7ff' bold='true'>❯</style> ")
                     user_input = await self.session.prompt_async(
                         prompt_ui,
                         prompt_continuation=self.prompt_continuation
                     )
                     
                 if not user_input.strip():
-                    # We didn't accept it, but prompt toolkit left the prompt hanging or we can clear
-                    # Let's print the closing block so it doesn't look cut off
-                    self.console.print("[bold #5fd7ff]╰─[/bold #5fd7ff]")
                     continue
                 if user_input.strip().lower() in ['exit', 'quit']:
-                    self.console.print("[bold #5fd7ff]╰─[/bold #5fd7ff]")
                     break
 
-                # Successfully grabbed input, close the dialog box visually
-                self.console.print("[bold #5fd7ff]╰─[/bold #5fd7ff]")
+                # The prompt is gone. Render exact input into a gorgeous closed Panel box
+                from rich.panel import Panel
+                user_panel = Panel(
+                    user_input,
+                    border_style="#5fd7ff",
+                    expand=False,
+                    title="User",
+                    title_align="left"
+                )
+                self.console.print(user_panel)
 
                 self.console.print()
                 self.console.print("[bold #5fd7ff]✦ Cascade[/bold #5fd7ff]")
