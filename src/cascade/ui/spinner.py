@@ -1,10 +1,14 @@
-"""Async animated spinner for API wait states. Zero dependencies."""
+"""Async animated spinner for API wait states."""
 import sys
 import asyncio
 import time
-from cascade.ui.colors import CYAN, DIM, RESET
 
 SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+# Rich-compatible ANSI (no dependency on deleted colors.py)
+_CYAN = "\033[36m"
+_DIM = "\033[2m"
+_RESET = "\033[0m"
 
 
 class Spinner:
@@ -25,7 +29,6 @@ class Spinner:
         if self._task and not self._task.done():
             self._task.cancel()
         self._task = None
-        # Clear the spinner line
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
         return time.perf_counter() - self._start_time
@@ -37,7 +40,7 @@ class Spinner:
             while True:
                 frame = SPINNER_FRAMES[i % len(SPINNER_FRAMES)]
                 elapsed = time.perf_counter() - self._start_time
-                text = f"\r{CYAN}{frame}{RESET} {DIM}{self.message}... ({elapsed:.1f}s){RESET}"
+                text = f"\r{_CYAN}{frame}{_RESET} {_DIM}{self.message}... ({elapsed:.1f}s){_RESET}"
                 sys.stdout.write(text)
                 sys.stdout.flush()
                 i += 1
