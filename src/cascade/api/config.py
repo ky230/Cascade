@@ -15,9 +15,9 @@ CUSTOM_PROVIDERS = {
         "base_url": None
     },
     "kimi": {
-        "prefix": "moonshot/",
+        "prefix": "openai/",
         "env_key": "MOONSHOT_API_KEY",
-        "base_url": None
+        "base_url": "https://api.moonshot.cn/v1"
     }
 }
 
@@ -31,6 +31,10 @@ def get_litellm_kwargs(provider_name: str, model_name: str) -> dict:
         api_key = os.getenv(cfg["env_key"])
         if api_key:
             kwargs["api_key"] = api_key
+            
+        if cfg["base_url"]:
+            kwargs["api_base"] = cfg["base_url"]
+            
         return kwargs
     
     # For OpenAI/Anthropic/Gemini, litellm natively identifies the model and grabs os.environ
