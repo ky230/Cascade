@@ -175,18 +175,31 @@ class PromptInput(TextArea):
         PromptInput is the SINGLE AUTHORITY for Enter handling.
         Palette navigation keys (up/down/tab/escape) bubble to App.on_key.
         """
-        # Check palette visibility once
+        # Check command palette visibility
         palette_visible = False
         palette = None
         try:
             from cascade.ui.command_palette import CommandPalette
             palette = self.app.query_one("#cmd-palette", CommandPalette)
-            palette_visible = palette.display  # use .display, not .is_visible
+            palette_visible = palette.display
         except Exception:
             pass
 
-        # Palette visible: let UP/DOWN/TAB/ESCAPE bubble to App.on_key
+        # Check model palette visibility
+        model_palette_visible = False
+        try:
+            from cascade.ui.model_palette import ModelPalette
+            mp = self.app.query_one("#model-palette", ModelPalette)
+            model_palette_visible = mp.display
+        except Exception:
+            pass
+
+        # Command palette visible: let UP/DOWN/TAB/ESCAPE bubble to App.on_key
         if palette_visible and event.key in ("up", "down", "tab", "escape"):
+            return
+
+        # Model palette visible: let UP/DOWN/ESCAPE bubble to App.on_key
+        if model_palette_visible and event.key in ("up", "down", "escape"):
             return
 
         if event.key == "enter":
@@ -194,7 +207,12 @@ class PromptInput(TextArea):
             event.stop()
             event.prevent_default()
 
-            # Case 1: Palette visible → select command and submit
+            # Case 0: Model palette visible → select model directly
+            if model_palette_visible:
+                mp.select_current()
+                return
+
+            # Case 1: Command palette visible → select command and submit
             if palette_visible and palette is not None and palette._matches:
                 trigger = palette._matches[palette._highlight]["trigger"]
                 palette.display = False

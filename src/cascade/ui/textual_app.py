@@ -16,6 +16,7 @@ from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Vertical
 from textual.widgets import Footer, Static, Input
 from cascade.ui.widgets import PromptInput
+from cascade.ui.model_palette import ModelPalette
 from textual.binding import Binding
 from textual import on
 
@@ -121,6 +122,25 @@ class CascadeApp(App):
         except Exception:
             pass
 
+        # ── Model palette navigation (when visible) ──
+        try:
+            model_palette = self.query_one("#model-palette", ModelPalette)
+            if model_palette.display:
+                if event.key in ("up", "down", "escape"):
+                    event.stop()
+                    event.prevent_default()
+
+                    if event.key == "up":
+                        model_palette.move_up()
+                        return
+                    elif event.key == "down":
+                        model_palette.move_down()
+                        return
+                    elif event.key == "escape":
+                        model_palette.cancel()
+                        return
+        except Exception:
+            pass
 
         # ── Type-anywhere: forward printable keys to input ──
         if event.is_printable:
@@ -152,6 +172,7 @@ class CascadeApp(App):
                     id="prompt-container",
                 ),
                 CommandPalette(router=self.router, id="cmd-palette"),
+                ModelPalette(id="model-palette"),
                 id="input-section",
             ),
             id="chat-history",
@@ -258,9 +279,7 @@ class CascadeApp(App):
         if user_text.startswith("/"):
             await self.append_user_message(user_text)
             cmd_ctx = CommandContext(
-                console=None,
                 engine=self.engine,
-                session=None,
                 repl=self,
             )
             handled = await self.router.dispatch(user_text, cmd_ctx)
@@ -426,14 +445,15 @@ class CascadeApp(App):
 
     async def append_user_message(self, text: str) -> None:
         """Add a user message bubble to the chat history."""
-        from rich.text import Text
+
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         
-        msg = Static(Text(text), id=f"user-msg-{self._message_count}", classes="user-msg-box")
+        formatted_text = "[#5fd7ff]❯[/] " + text
+        msg = CopyableStatic(formatted_text, id=f"user-msg-{self._message_count}", classes="user-msg-box")
         msg.border_title = "User"
-        
+
         await container.mount(msg, before=target)
         container.scroll_end(animate=False)
 
@@ -536,18 +556,24 @@ class CascadeApp(App):
         except Exception as e:
             self.log(f"Failed to update footer: {e}")
 
-    def open_model_picker(self, engine, current_provider: str, current_model: str) -> None:
-        """Open the model picker modal with a callback (no worker needed)."""
-        from cascade.ui.model_picker import ModelPickerScreen
+    def show_model_palette(self) -> None:
+        """Show the inline model picker palette below the input."""
+        palette = self.query_one("#model-palette", ModelPalette)
+        palette.populate(
+            current_provider=self.engine.client.provider,
+            current_model=self.engine.client.model_name,
+        )
+        # Scroll to bottom so palette is visible
+        container = self.query_one("#chat-history", VerticalScroll)
+        container.scroll_end(animate=False)
+
+
+
+    @on(ModelPalette.Selected)
+    def handle_model_selected(self, event: ModelPalette.Selected) -> None:
+        """Apply model switch from the inline palette."""
         from cascade.services.api_client import ModelClient
-
-        def _on_result(result: dict | None) -> None:
-            if result:
-                engine.client = ModelClient(provider=result["provider"], model_name=result["model"])
-                self.update_footer()
-                self.notify(f"✓ Switched to {result['display']}")
-            else:
-                self.notify("ℹ Cancelled")
-            self.query_one("#prompt-input", PromptInput).focus()
-
-        self.push_screen(ModelPickerScreen(current_provider, current_model), callback=_on_result)
+        self.engine.client = ModelClient(provider=event.provider, model_name=event.model_id)
+        self.update_footer()
+        self.notify(f"✅ Switched to {event.display_name}")
+        self.query_one("#prompt-input", PromptInput).focus()

@@ -17,14 +17,14 @@ PROVIDER_CATALOG = {
         "display": "Google Gemini",
         "env_key": "GEMINI_API_KEY",
         "models": [
-            {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
-            {"id": "gemini-3.1-pro-preview-customtools", "label": "Gemini 3.1 Pro (Tools)", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
-            {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash Lite Preview", "price": "Free account: free (limited); Paid account: $0.125/M in, $0.75/M out"},
-            {"id": "gemini-3.1-flash-image-preview", "label": "Gemini 3.1 Flash Image 🎨", "price": "Paid account only: ~$0.076/image (4K)"},
-            {"id": "gemini-3-pro-preview", "label": "Gemini 3 Pro Preview", "price": "≤200K: $2/M in, $12/M out; >200K: $4/M in, $18/M out; Paid account -50% extra"},
-            {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview", "price": "$0.50/M in, $3.00/M out; Paid account -50% extra"},
-            {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "price": "≤200K: $1.25/M in, $10/M out; >200K: $2.50/M in, $15/M out; Paid account -50% extra"},
-            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "price": "$0.30/M in, $2.50/M out; Paid account -50% extra"},
+            {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview", "price": "$2/M in, $12/M out (≤200K); $4/$18 (>200K); Paid -50%"},
+            {"id": "gemini-3.1-pro-preview-customtools", "label": "Gemini 3.1 Pro (Tools)", "price": "$2/M in, $12/M out (≤200K); $4/$18 (>200K); Paid -50%"},
+            {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash Lite Preview", "price": "$0.125/M in, $0.75/M out (Paid); Free tier available"},
+            {"id": "gemini-3.1-flash-image-preview", "label": "Gemini 3.1 Flash Image", "price": "$0.076/image (4K, Paid only)"},
+            {"id": "gemini-3-pro-preview", "label": "Gemini 3 Pro Preview", "price": "$2/M in, $12/M out (≤200K); $4/$18 (>200K); Paid -50%"},
+            {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview", "price": "$0.50/M in, $3.00/M out; Paid -50%"},
+            {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "price": "$1.25/M in, $10/M out (≤200K); $2.50/$15 (>200K); Paid -50%"},
+            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "price": "$0.30/M in, $2.50/M out; Paid -50%"},
         ],
     },
     "grok": {
@@ -36,7 +36,7 @@ PROVIDER_CATALOG = {
             {"id": "grok-4.20-multi-agent-0309", "label": "Grok 4.20 (Multi-Agent)", "price": "$2.00/M in, $6.00/M out"},
             {"id": "grok-4-1-fast-reasoning", "label": "Grok 4.1 Fast (Reasoning)", "price": "$0.20/M in, $0.50/M out"},
             {"id": "grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast", "price": "$0.20/M in, $0.50/M out"},
-            {"id": "grok-imagine-image-pro", "label": "Grok Image Pro 🎨", "price": "$0.07 / image"},
+            {"id": "grok-imagine-image-pro", "label": "Grok Image Pro", "price": "$0.07/image"},
         ],
     },
     "kimi": {
@@ -52,14 +52,14 @@ PROVIDER_CATALOG = {
         "display": "ZhipuAI (GLM)",
         "env_key": "GLM_API_KEY",
         "models": [
-            {"id": "glm-5.1", "label": "GLM-5.1", "price": "Need GLM Coding Plan"},
-            {"id": "glm-5-turbo", "label": "GLM-5 Turbo", "price": "¥5/M in, ¥22/M out; >32K: ¥7/M in, ¥26/M out"},
-            {"id": "glm-5", "label": "GLM-5", "price": "¥4/M in, ¥18/M out; >32K: ¥6/M in, ¥22/M out"},
-            {"id": "glm-4.7", "label": "GLM-4.7", "price": "¥2/M in, ¥8/M out; >32K: ¥4/M in, ¥16/M out"},
+            {"id": "glm-5.1", "label": "GLM-5.1", "price": "¥GLM Coding Plan required"},
+            {"id": "glm-5-turbo", "label": "GLM-5 Turbo", "price": "¥5/M in, ¥22/M out; ¥7/¥26 (>32K)"},
+            {"id": "glm-5", "label": "GLM-5", "price": "¥4/M in, ¥18/M out; ¥6/¥22 (>32K)"},
+            {"id": "glm-4.7", "label": "GLM-4.7", "price": "¥2/M in, ¥8/M out; ¥4/¥16 (>32K)"},
             {"id": "glm-4.6", "label": "GLM-4.6", "price": "¥2/M in, ¥8/M out"},
             {"id": "glm-4.5", "label": "GLM-4.5", "price": "¥2/M in, ¥8/M out"},
             {"id": "glm-4.5-air", "label": "GLM-4.5 Air", "price": "¥0.80/M in, ¥2/M out"},
-            {"id": "glm-4-flash", "label": "GLM-4 Flash", "price": "Free"},
+            {"id": "glm-4-flash", "label": "GLM-4 Flash", "price": "¥0 (Free)"},
         ],
     },
     "minimax": {
@@ -173,9 +173,9 @@ class ModelCommand(BaseCommand):
             await ctx.output_rich("[dim]Usage: /model [number] or /model <provider> <model_id>[/dim]")
             return
 
-        # Delegate to the Textual app which uses callback-based push_screen
-        if hasattr(ctx.repl, 'open_model_picker'):
-            ctx.repl.open_model_picker(engine, current_provider, current_model)
+        # Show inline model palette (no-args case)
+        if hasattr(ctx.repl, 'show_model_palette'):
+            ctx.repl.show_model_palette()
         else:
             await ctx.output("Model picker not available in this mode.")
 

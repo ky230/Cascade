@@ -210,8 +210,9 @@ Input:focus {
 Toast {
     width: auto;
     min-width: 20;
-    max-width: 60;
-    padding: 1 2; 
+    max-width: 50;
+    padding: 0 1;
+    margin: 0 1 1 0;
     background: #161b22;
     color: #c9d1d9;
     border-left: tall #5fd7ff;
@@ -227,36 +228,5 @@ Toast > .toast--title {
 }
 Toast.-information > .toast--title {
     color: #5fd7ff;
-}
-
-/* ── Modal Screens ── */
-ModelPickerScreen {
-    align: center middle;
-    background: rgba(13, 17, 23, 0.8);
-}
-
-#model-picker-container {
-    width: 90%;
-    height: 80%;
-    background: #161b22;
-    border: solid #5fd7ff;
-    padding: 1 2;
-}
-
-#model-picker-header {
-    height: 3;
-    margin-bottom: 1;
-}
-
-#model-list {
-    height: 1fr;
-    background: #0d1117;
-    border: solid #30363d;
-}
-
-#model-picker-footer {
-    height: 1;
-    margin-top: 1;
-    text-align: center;
 }
 """
