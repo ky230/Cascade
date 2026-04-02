@@ -34,18 +34,16 @@ Screen {
     margin: 0 1 1 1;
 }
 
-/* ── Input Section (outside scroll, always visible) ── */
+/* ── Prompt Container ── */
 
 #input-section {
     height: auto;
-    background: #0d1117;
-    padding: 0 0;
 }
 
 #prompt-container {
     height: 1;
     layout: horizontal;
-    margin: 0 0 0 1;
+    margin: 1 0 0 1;
 }
 
 #prompt-label {
@@ -93,7 +91,6 @@ Screen {
     margin: 0 1;
     padding: 0 1;
     min-height: 3;
-    max-height: 50;
     height: auto;
 }
 
