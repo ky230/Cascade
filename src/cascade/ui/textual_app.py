@@ -13,9 +13,10 @@ import os
 from typing import Optional
 
 from textual.app import App, ComposeResult
-from textual.containers import VerticalScroll, Horizontal
+from textual.containers import VerticalScroll, Horizontal, Vertical
 from textual.widgets import Footer, Static, Input
 from textual.binding import Binding
+from textual import on
 
 from cascade.engine.query import QueryEngine, QueryEngineConfig
 from cascade.state.store import Store
@@ -26,7 +27,8 @@ from cascade.tools.file_tools import FileReadTool, FileWriteTool
 from cascade.tools.search_tools import GrepTool, GlobTool
 from cascade.bootstrap.system_prompt import build_system_prompt
 from cascade.commands import CommandRouter, CommandContext
-from cascade.ui.widgets import CopyableTextArea, SpinnerWidget, SlashSuggester
+from cascade.ui.widgets import CopyableTextArea, SpinnerWidget
+from cascade.ui.command_palette import CommandPalette
 from cascade.ui.styles import CASCADE_TCSS
 from cascade.ui.banner import VERSION, ASCII_ART, _LOGO, _L, _R
 
@@ -82,7 +84,35 @@ class CascadeApp(App):
         self.router.register(ModelCommand())
 
     def on_key(self, event) -> None:
-        """Globally intercept printable keys if input is not focused."""
+        """Globally intercept keys: palette nav + type-anywhere."""
+        # ── Palette navigation (when visible) ──
+        try:
+            palette = self.query_one("#cmd-palette", CommandPalette)
+            if palette.is_visible:
+                if event.key == "up":
+                    palette.move_up()
+                    event.stop()
+                    event.prevent_default()
+                    return
+                elif event.key == "down":
+                    palette.move_down()
+                    event.stop()
+                    event.prevent_default()
+                    return
+                elif event.key == "escape":
+                    palette.display = False
+                    event.stop()
+                    event.prevent_default()
+                    return
+                elif event.key == "enter":
+                    if palette.select_current():
+                        event.stop()
+                        event.prevent_default()
+                        return
+        except Exception:
+            pass
+
+        # ── Type-anywhere: forward printable keys to input ──
         if event.is_printable:
             try:
                 inp = self.query_one("#prompt-input", Input)
@@ -106,10 +136,14 @@ class CascadeApp(App):
 
         # ── Scrollable area: chat history + input together ──
         yield VerticalScroll(
-            Horizontal(
-                Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
-                Input(id="prompt-input", suggester=SlashSuggester(self.router)),
-                id="prompt-container",
+            Vertical(
+                Horizontal(
+                    Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
+                    Input(id="prompt-input"),
+                    id="prompt-container",
+                ),
+                CommandPalette(router=self.router, id="cmd-palette"),
+                id="input-section",
             ),
             id="chat-history",
         )
@@ -154,6 +188,32 @@ class CascadeApp(App):
 
     # ── Input handling ────────────────────────────────────────
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Show/hide command palette based on input content."""
+        try:
+            palette = self.query_one("#cmd-palette", CommandPalette)
+            value = event.value.strip()
+            if value.startswith("/") and " " not in value:
+                palette.filter(value)
+                container = self.query_one("#chat-history", VerticalScroll)
+                container.scroll_end(animate=False)
+            else:
+                palette.display = False
+        except Exception:
+            pass
+
+    @on(CommandPalette.Selected)
+    def handle_command_palette_selected(self, event: CommandPalette.Selected) -> None:
+        """Fill input with selected command from palette."""
+        inp = self.query_one("#prompt-input", Input)
+        inp.value = event.trigger + " "
+        
+        # Hide palette and focus input
+        palette = self.query_one("#cmd-palette", CommandPalette)
+        palette.display = False
+        inp.cursor_position = len(inp.value)
+        inp.focus()
+
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter in the input box."""
         user_text = event.value.strip()
@@ -165,6 +225,12 @@ class CascadeApp(App):
 
         input_widget = self.query_one("#prompt-input", Input)
         input_widget.value = ""
+
+        # Hide palette on submit
+        try:
+            self.query_one("#cmd-palette", CommandPalette).display = False
+        except Exception:
+            pass
 
         # ── Slash command routing ──
         if user_text.startswith("/"):
@@ -199,7 +265,7 @@ class CascadeApp(App):
     async def _run_generation(self, user_text: str) -> None:
         """Submit to QueryEngine with streaming callbacks."""
         container = self.query_one("#chat-history", VerticalScroll)
-        prompt_container = self.query_one("#prompt-container", Horizontal)
+        target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         msg_id = self._message_count
         self._generating = True
@@ -207,7 +273,7 @@ class CascadeApp(App):
 
         # AI label
         ai_label = Static("✦ Cascade", classes="ai-label")
-        await container.mount(ai_label, before=prompt_container)
+        await container.mount(ai_label, before=target)
 
         # Spinner
         await self._show_spinner("Generating")
@@ -257,7 +323,7 @@ class CascadeApp(App):
                 id=f"ai-msg-{msg_id}",
                 classes="message-area ai-msg",
             )
-            await container.mount(ai_area, before=prompt_container)
+            await container.mount(ai_area, before=target)
 
         container.scroll_end(animate=False)
         self._generating = False
@@ -292,9 +358,9 @@ class CascadeApp(App):
     async def _show_spinner(self, message: str = "Thinking") -> None:
         """Mount a spinner widget before the prompt."""
         container = self.query_one("#chat-history", VerticalScroll)
-        prompt_container = self.query_one("#prompt-container", Horizontal)
+        target = self.query_one("#input-section", Vertical)
         self._spinner = SpinnerWidget(message, classes="spinner")
-        await container.mount(self._spinner, before=prompt_container)
+        await container.mount(self._spinner, before=target)
         container.scroll_end(animate=False)
 
     async def _remove_spinner(self) -> None:
@@ -314,22 +380,31 @@ class CascadeApp(App):
         """Add a user message bubble to the chat history."""
         from rich.text import Text
         container = self.query_one("#chat-history", VerticalScroll)
-        prompt_container = self.query_one("#prompt-container", Horizontal)
+        target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         
         msg = Static(Text(text), id=f"user-msg-{self._message_count}", classes="user-msg-box")
         msg.border_title = "User"
         
-        await container.mount(msg, before=prompt_container)
+        await container.mount(msg, before=target)
         container.scroll_end(animate=False)
 
     async def append_system_message(self, text: str) -> None:
         """Add a system/info message to the chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        prompt_container = self.query_one("#prompt-container", Horizontal)
+        target = self.query_one("#input-section", Vertical)
         await container.mount(
-            CopyableTextArea(text, classes="message-area system-msg"), before=prompt_container,
+            CopyableTextArea(text, classes="message-area system-msg"), before=target,
         )
+        container.scroll_end(animate=False)
+        self.query_one("#prompt-input", Input).focus()
+
+    async def append_rich_message(self, markup: str) -> None:
+        """Add a Rich-markup message as a Static widget (supports colors/emoji)."""
+        container = self.query_one("#chat-history", VerticalScroll)
+        target = self.query_one("#input-section", Vertical)
+        msg = Static(markup, classes="rich-msg")
+        await container.mount(msg, before=target)
         container.scroll_end(animate=False)
         self.query_one("#prompt-input", Input).focus()
 
@@ -338,12 +413,12 @@ class CascadeApp(App):
     ) -> None:
         """Add a tool execution message to the chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        prompt_container = self.query_one("#prompt-container", Horizontal)
+        target = self.query_one("#input-section", Vertical)
         await container.mount(
-            Static(f"  {label}", classes="tool-label"), before=prompt_container,
+            Static(f"  {label}", classes="tool-label"), before=target,
         )
         await container.mount(
-            CopyableTextArea(content, classes=f"message-area {css_class}"), before=prompt_container,
+            CopyableTextArea(content, classes=f"message-area {css_class}"), before=target,
         )
         container.scroll_end(animate=False)
 
@@ -352,10 +427,7 @@ class CascadeApp(App):
         status = self.query_one("#status-bar", Static)
         status.update(self._build_status_markup())
 
-    def update_footer(self) -> None:
-        """Refresh footer bar after model switch."""
-        footer = self.query_one("#footer-bar", Static)
-        footer.update(self._build_footer_markup())
+
 
     # ── Actions ───────────────────────────────────────────────
 
@@ -376,10 +448,10 @@ class CascadeApp(App):
         self.query_one("#prompt-input", Input).focus()
 
     def action_clear_chat(self) -> None:
-        """Ctrl+L: Clear chat history, keep prompt."""
+        """Ctrl+L: Clear chat history, keep input section."""
         container = self.query_one("#chat-history", VerticalScroll)
         for child in list(container.children):
-            if child.id != "prompt-container":
+            if child.id != "input-section":
                 child.remove()
 
     def action_copy_last_reply(self) -> None:
@@ -394,3 +466,29 @@ class CascadeApp(App):
         except Exception:
             self.copy_to_clipboard(self._last_reply)
             self.notify("已复制 (OSC52)", title="✅")
+
+    def update_footer(self) -> None:
+        """Update the footer text (e.g. after switching models)."""
+        try:
+            footer = self.query_one("#footer-bar", Static)
+            footer.update(self._build_footer_markup())
+            self.log("Footer updated")
+        except Exception as e:
+            self.log(f"Failed to update footer: {e}")
+
+    def open_model_picker(self, engine, current_provider: str, current_model: str) -> None:
+        """Open the model picker modal with a callback (no worker needed)."""
+        from cascade.ui.model_picker import ModelPickerScreen
+        from cascade.services.api_client import ModelClient
+
+        def _on_result(result: dict | None) -> None:
+            if result:
+                engine.client = ModelClient(provider=result["provider"], model_name=result["model"])
+                self.update_footer()
+                self.notify(f"Switched to {result['display']}", title="✓")
+            else:
+                self.notify("Cancelled", title="ℹ")
+            self.query_one("#prompt-input", Input).focus()
+
+        self.push_screen(ModelPickerScreen(current_provider, current_model), callback=_on_result)
+

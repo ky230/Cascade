@@ -144,12 +144,12 @@ class ModelCommand(BaseCommand):
                         ctx.repl.update_header()
                     if hasattr(ctx.repl, 'update_footer'):
                         ctx.repl.update_footer()
-                    await ctx.output(
-                        f"✓ Switched to {sel['provider_display']} / {sel['model_label']} ({sel['model_id']})"
+                    await ctx.output_rich(
+                        f"[#00d7af]✓ Switched to {sel['provider_display']} / {sel['model_label']} ({sel['model_id']})[/#00d7af]"
                     )
                     return
                 else:
-                    await ctx.output(f"Invalid number: {parts[0]}. Valid range: 1-{len(choices)}")
+                    await ctx.output_rich(f"[red]Invalid number: {parts[0]}. Valid range: 1-{len(choices)}[/red]")
                     return
 
             # Provider + model: /model deepseek deepseek-chat
@@ -161,38 +161,23 @@ class ModelCommand(BaseCommand):
                         ctx.repl.update_header()
                     if hasattr(ctx.repl, 'update_footer'):
                         ctx.repl.update_footer()
-                    await ctx.output(f"✓ Switched to {new_provider} / {new_model}")
+                    await ctx.output_rich(f"[#00d7af]✓ Switched to {new_provider} / {new_model}[/#00d7af]")
                     return
                 else:
-                    await ctx.output(
-                        f"Unknown provider: {new_provider}\n"
-                        f"Available: {', '.join(PROVIDER_CATALOG.keys())}"
+                    await ctx.output_rich(
+                        f"[red]Unknown provider: {new_provider}[/red]\n"
+                        f"[dim]Available: {', '.join(PROVIDER_CATALOG.keys())}[/dim]"
                     )
                     return
 
-            await ctx.output("Usage: /model [number] or /model <provider> <model_id>")
+            await ctx.output_rich("[dim]Usage: /model [number] or /model <provider> <model_id>[/dim]")
             return
 
-        # Display table
-        lines = [
-            "═══ Switch Model ═══",
-            f"Current: {current_provider} / {current_model}",
-            "",
-            f"{'#':>3}  {'Provider':<20s}  {'Model':<35s}  {'Price'}",
-            f"{'─'*3}  {'─'*20}  {'─'*35}  {'─'*30}",
-        ]
-
-        for i, c in enumerate(choices, 1):
-            marker = " ← current" if c["is_current"] else ""
-            prov_col = f"{c['provider_display']} [{c['key_status']}]"
-            model_col = f"{c['model_label']} ({c['model_id']}){marker}"
-            lines.append(f"{i:>3}  {prov_col:<22s}  {model_col:<45s}  {c['price']}")
-
-        lines.append("")
-        lines.append("Usage: /model <number> to switch, e.g. /model 3")
-        lines.append("       /model <provider> <model_id> for custom pick")
-
-        await ctx.output("\n".join(lines))
+        # Delegate to the Textual app which uses callback-based push_screen
+        if hasattr(ctx.repl, 'open_model_picker'):
+            ctx.repl.open_model_picker(engine, current_provider, current_model)
+        else:
+            await ctx.output("Model picker not available in this mode.")
 
 
 
