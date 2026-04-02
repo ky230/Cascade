@@ -21,6 +21,7 @@
 | **5: Setup** | ⬜ NOT STARTED | `/version`, `/config`, `/doctor`, `/init`, `/env` |
 | **6: UI** | ⬜ NOT STARTED | `/theme`, `/vim`, `/brief`, `/btw` |
 | **7: Tools** | ⬜ NOT STARTED | `/permissions`, `/hooks`, `/debug-tool-call`, `/sandbox-toggle` |
+| **7.5: Auto Mode** | ⬜ NOT STARTED | `/auto` — toggle permission mode (default ↔ auto), TUI footer indicator |
 | **8: Git** | ⬜ NOT STARTED | `/commit`, `/commit-push-pr`, `/pr-comments`, `/review`, `/security-review` |
 | **9: Memory** | ⬜ NOT STARTED | `/memory`, `/summary` |
 | **10: Plugins** | ⬜ NOT STARTED | `/plugin`, `/reload-plugins`, `/skills`, `/agents`, `/mcp`, `/tasks` |
@@ -54,6 +55,7 @@
 | 5 | C7-Setup | `/version`, `/config`, `/doctor`, `/init`, `/env` | 5 | manual: `/doctor` runs checks |
 | 6 | C8-UI + C10 + C11 | `/theme`, `/vim`, `/brief`, `/btw` | 4 | manual: switch theme, toggle vim |
 | 7 | C5-Tools | `/permissions`, `/hooks`, `/debug-tool-call`, `/sandbox-toggle` | 4 | manual: `/permissions` lists rules |
+| 7.5 | Auto Mode | `/auto` (toggle permission mode + footer indicator) | 1 | manual: `/auto` toggles mode, footer updates |
 | 8 | C6-Git | `/commit`, `/commit-push-pr`, `/pr-comments`, `/review`, `/security-review` | 5 | manual: `/commit` in a git repo |
 | 9 | C14-Memory | `/memory`, `/summary` | 2 | manual: `/memory` shows CASCADE.md |
 | 10 | C9-Plugins | `/plugin`, `/reload-plugins`, `/skills`, `/agents`, `/mcp`, `/tasks` | 6 | manual: `/skills` lists skills |
@@ -1384,6 +1386,117 @@ Same pattern as previous batches.
 
 ```bash
 git commit -m "feat(commands): add /permissions, /hooks, /debug-tool-call, /sandbox-toggle"
+```
+
+---
+
+## Batch 7.5: Auto Mode (/auto)
+
+> Toggle permission mode between `default` (ask every time) and `auto` (auto-approve read-only tools like FileRead/Grep/Glob, still ask for write/bash). Display current mode in TUI footer.
+>
+> **Design reference:** Claude Code uses Shift+Tab to cycle modes (default → acceptEdits → plan). Gemini CLI shows mode in the bottom-right footer bar. Cascade adopts `/auto` slash command + footer indicator.
+
+### Step 1: Implement `/auto` command
+
+**Files:**
+- Create: `src/cascade/commands/tools/auto.py`
+
+```python
+# src/cascade/commands/tools/auto.py
+from cascade.commands.base import BaseCommand, CommandContext
+from cascade.permissions.engine import PermissionMode
+
+
+class AutoCommand(BaseCommand):
+    name = "auto"
+    description = "Toggle auto-approve mode for safe (read-only) tools"
+    category = "Tools"
+
+    async def execute(self, ctx: CommandContext, args: str) -> None:
+        perm = ctx.engine.permissions
+        if not perm:
+            ctx.console.print("[dim]No permission engine configured.[/dim]")
+            return
+
+        if args.strip().lower() == "on":
+            perm.mode = PermissionMode.AUTO
+        elif args.strip().lower() == "off":
+            perm.mode = PermissionMode.DEFAULT
+        else:
+            # Toggle
+            if perm.mode == PermissionMode.AUTO:
+                perm.mode = PermissionMode.DEFAULT
+            else:
+                perm.mode = PermissionMode.AUTO
+
+        mode_display = {
+            PermissionMode.DEFAULT: "[bold yellow]Default[/bold yellow] (ask every time)",
+            PermissionMode.AUTO: "[bold green]Auto[/bold green] (read-only tools auto-approved)",
+            PermissionMode.BYPASS: "[bold red]Bypass[/bold red] (all tools auto-approved ⚠️)",
+        }
+        ctx.console.print(
+            f"Permission mode: {mode_display.get(perm.mode, str(perm.mode))}"
+        )
+
+        # Notify TUI to update footer if running in Textual
+        if hasattr(ctx.repl, '_update_footer_mode'):
+            ctx.repl._update_footer_mode()
+```
+
+### Step 2: Add mode indicator to TUI footer
+
+**Files:**
+- Modify: `src/cascade/ui/textual_app.py`
+
+Add a footer update method and a Static widget for the mode indicator:
+```python
+def _update_footer_mode(self) -> None:
+    """Update the permission mode indicator in the footer."""
+    try:
+        mode_widget = self.query_one("#footer-mode", Static)
+        mode = self.engine.permissions.mode if self.engine.permissions else PermissionMode.DEFAULT
+        mode_display = {
+            PermissionMode.DEFAULT: "[dim]ask[/dim]",
+            PermissionMode.AUTO: "[bold green]Auto[/bold green]",
+            PermissionMode.BYPASS: "[bold red]BYPASS[/bold red]",
+        }
+        mode_widget.update(mode_display.get(mode, "unknown"))
+    except Exception:
+        pass
+```
+
+In `compose()`, add to the footer bar:
+```python
+# Inside the footer Horizontal, add:
+Static("ask", id="footer-mode")
+```
+
+### Step 3: Register `/auto` in CascadeApp
+
+**Files:**
+- Modify: `src/cascade/ui/textual_app.py`
+
+```python
+from cascade.commands.tools.auto import AutoCommand
+self.router.register(AutoCommand())
+```
+
+### Step 4: Manual test checkpoint
+
+```bash
+cascade
+# /auto         -> toggles to Auto mode, footer shows "Auto" in green
+# /auto off     -> back to Default, footer shows "ask"
+# /auto on      -> Auto mode
+# Send a query that triggers FileRead -> auto-approved, no y/N prompt
+# Send a query that triggers BashTool -> still asks y/N
+```
+
+### Step 5: Commit
+
+```bash
+git add src/cascade/commands/tools/auto.py src/cascade/ui/textual_app.py
+git commit -m "feat(commands): add /auto to toggle permission mode with footer indicator"
 ```
 
 ---
