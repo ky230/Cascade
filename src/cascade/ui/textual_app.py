@@ -136,12 +136,12 @@ class CascadeApp(App):
             Static("Type 'exit' or 'quit' to close. Ctrl+N for newline. Select text and press 'c' to copy.", id="help-text"),
             
             Vertical(
-                CommandPalette(router=self.router, id="cmd-palette"),
                 Horizontal(
                     Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
                     Input(id="prompt-input"),
                     id="prompt-container",
                 ),
+                CommandPalette(router=self.router, id="cmd-palette"),
                 id="input-section",
             ),
             id="chat-history",
@@ -219,7 +219,7 @@ class CascadeApp(App):
         if not user_text:
             return
         if self._generating:
-            self.notify("正在生成中，请稍候...", title="⏳")
+            self.notify("⏳ 正在生成中，请稍候...")
             return
 
         input_widget = self.query_one("#prompt-input", Input)
@@ -460,15 +460,16 @@ class CascadeApp(App):
     def action_copy_last_reply(self) -> None:
         """Ctrl+Y: Copy the last AI reply to clipboard."""
         if not self._last_reply:
-            self.notify("没有可复制的内容", title="ℹ")
+            self.notify("ℹ 没有可复制的内容")
             return
+            
         try:
             import pyperclip
             pyperclip.copy(self._last_reply)
-            self.notify(f"已复制 {len(self._last_reply)} 字符", title="✅")
+            self.notify(f"✅ 已复制 {len(self._last_reply)} 字符")
         except Exception:
             self.copy_to_clipboard(self._last_reply)
-            self.notify("已复制 (OSC52)", title="✅")
+            self.notify("✅ 已复制 (OSC52)")
 
     def update_footer(self) -> None:
         """Update the footer text (e.g. after switching models)."""
@@ -488,10 +489,9 @@ class CascadeApp(App):
             if result:
                 engine.client = ModelClient(provider=result["provider"], model_name=result["model"])
                 self.update_footer()
-                self.notify(f"Switched to {result['display']}", title="✓")
+                self.notify(f"✓ Switched to {result['display']}")
             else:
-                self.notify("Cancelled", title="ℹ")
+                self.notify("ℹ Cancelled")
             self.query_one("#prompt-input", Input).focus()
 
         self.push_screen(ModelPickerScreen(current_provider, current_model), callback=_on_result)
-

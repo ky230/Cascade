@@ -2,31 +2,9 @@
 from __future__ import annotations
 
 import pyperclip
-from textual.widgets import TextArea, Static, Input
+from textual.widgets import TextArea, Static
 from textual.binding import Binding
 from textual.reactive import reactive
-from textual.suggester import Suggester
-
-
-class SlashSuggester(Suggester):
-    """Textual Suggester for slash command autocompletion.
-
-    Only suggests when input starts with '/'. Shows matching
-    commands as the user types.
-    """
-
-    def __init__(self, router, **kwargs):
-        super().__init__(use_cache=False, **kwargs)
-        self._router = router
-
-    async def get_suggestion(self, value: str) -> str | None:
-        if not value.startswith("/"):
-            return None
-        query = value.lower()
-        for trigger in sorted(self._router._commands.keys()):
-            if trigger.lower().startswith(query) and trigger.lower() != query:
-                return trigger
-        return None
 
 
 class CopyableTextArea(TextArea):
@@ -83,13 +61,13 @@ class CopyableTextArea(TextArea):
         """Copy text to clipboard: pyperclip first, OSC 52 fallback."""
         try:
             pyperclip.copy(text)
-            self.notify(f"已复制 {len(text)} 字符", title="✅")
+            self.notify(f"✅ 已复制 {len(text)} 字符")
         except Exception:
             try:
                 self.app.copy_to_clipboard(text)
-                self.notify(f"已复制 {len(text)} 字符 (OSC52)", title="✅")
+                self.notify(f"✅ 已复制 {len(text)} 字符 (OSC52)")
             except Exception as e:
-                self.notify(str(e), title="❌", severity="error")
+                self.notify(f"❌ {str(e)}")
 
 
 class SpinnerWidget(Static):
@@ -108,9 +86,11 @@ class SpinnerWidget(Static):
     _frame_index: reactive[int] = reactive(0)
 
     def __init__(self, message: str = "Thinking", **kwargs):
+        import time
         super().__init__(**kwargs)
         self._message = message
         self._timer = None
+        self._start_time = time.time()
 
     def on_mount(self) -> None:
         self._timer = self.set_interval(0.08, self._advance_frame)
@@ -119,8 +99,10 @@ class SpinnerWidget(Static):
         self._frame_index += 1
 
     def watch__frame_index(self, value: int) -> None:
+        import time
         frame = self.SPINNER_FRAMES[value % len(self.SPINNER_FRAMES)]
-        self.update(f"[#5fd7ff]{frame}[/#5fd7ff] [dim]{self._message}...[/dim]")
+        elapsed = time.time() - self._start_time
+        self.update(f"[#5fd7ff]{frame}[/#5fd7ff] [dim]{self._message}... ({elapsed:.1f}s)[/dim]")
 
     def stop(self) -> None:
         """Stop the animation timer."""
