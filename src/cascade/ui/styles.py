@@ -38,7 +38,7 @@ Screen {
 
 #input-section {
     height: auto;
-    padding-bottom: 8;
+    padding-bottom: 12;
 }
 
 #prompt-container {
@@ -195,9 +195,37 @@ Input:focus {
 
 .palette-item {
     height: 1;
-    background: #1a1a2e;
-    padding: 0 0;
-    margin: 0 0;
+    background: transparent;
+    padding: 0 1;
+    margin: 0;
+    width: 100%;
+}
+
+.palette-item.active {
+    background: #5fd7ff;
+}
+
+/* ── Notifications / Toast ── */
+Toast {
+    width: auto;
+    min-width: 20;
+    max-width: 60;
+    padding: 1 2; 
+    background: #161b22;
+    color: #c9d1d9;
+    border-left: tall #5fd7ff;
+}
+
+Toast.-information {
+    border-left: tall #5fd7ff;
+}
+
+Toast > .toast--title {
+    color: #5fd7ff;
+    text-style: bold;
+}
+Toast.-information > .toast--title {
+    color: #5fd7ff;
 }
 
 /* ── Modal Screens ── */
