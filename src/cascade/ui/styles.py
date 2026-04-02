@@ -92,6 +92,8 @@ Screen {
     padding: 0 1;
     min-height: 3;
     height: auto;
+    overflow: hidden hidden;
+    scrollbar-size: 0 0;
 }
 
 .message-area:focus {
