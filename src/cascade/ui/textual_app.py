@@ -99,6 +99,11 @@ class CascadeApp(App):
                     event.stop()
                     event.prevent_default()
                     return
+                elif event.key == "tab":
+                    if palette.select_current():
+                        event.stop()
+                        event.prevent_default()
+                        return
                 elif event.key == "escape":
                     palette.display = False
                     event.stop()
@@ -388,12 +393,12 @@ class CascadeApp(App):
         await container.mount(msg, before=target)
         container.scroll_end(animate=False)
 
-    async def append_system_message(self, text: str) -> None:
+    async def append_system_message(self, text: str, language: str | None = "markdown") -> None:
         """Add a system/info message to the chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
         await container.mount(
-            CopyableTextArea(text, classes="message-area system-msg"), before=target,
+            CopyableTextArea(text, language=language, classes="message-area system-msg"), before=target,
         )
         container.scroll_end(animate=False)
         self.query_one("#prompt-input", Input).focus()
