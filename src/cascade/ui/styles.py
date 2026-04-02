@@ -38,6 +38,7 @@ Screen {
 
 #input-section {
     height: auto;
+    padding-bottom: 8;
 }
 
 #prompt-container {
