@@ -134,18 +134,18 @@ class CascadeApp(App):
         yield Static(self._build_status_markup(), id="status-bar")
         yield Static("Type 'exit' or 'quit' to close. Ctrl+N for newline. Select text and press 'c' to copy.", id="help-text")
 
-        # ── Scrollable area: chat history + input together ──
-        yield VerticalScroll(
-            Vertical(
-                Horizontal(
-                    Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
-                    Input(id="prompt-input"),
-                    id="prompt-container",
-                ),
-                CommandPalette(router=self.router, id="cmd-palette"),
-                id="input-section",
+        # ── Scrollable area: chat history only ──
+        yield VerticalScroll(id="chat-history")
+
+        # ── Input section: OUTSIDE scroll, always visible ──
+        yield Vertical(
+            CommandPalette(router=self.router, id="cmd-palette"),
+            Horizontal(
+                Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
+                Input(id="prompt-input"),
+                id="prompt-container",
             ),
-            id="chat-history",
+            id="input-section",
         )
 
         # ── Bottom footer: model info ──
@@ -265,7 +265,6 @@ class CascadeApp(App):
     async def _run_generation(self, user_text: str) -> None:
         """Submit to QueryEngine with streaming callbacks."""
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         msg_id = self._message_count
         self._generating = True
@@ -273,7 +272,7 @@ class CascadeApp(App):
 
         # AI label
         ai_label = Static("✦ Cascade", classes="ai-label")
-        await container.mount(ai_label, before=target)
+        await container.mount(ai_label)
 
         # Spinner
         await self._show_spinner("Generating")
@@ -323,7 +322,7 @@ class CascadeApp(App):
                 id=f"ai-msg-{msg_id}",
                 classes="message-area ai-msg",
             )
-            await container.mount(ai_area, before=target)
+            await container.mount(ai_area)
 
         container.scroll_end(animate=False)
         self._generating = False
@@ -356,11 +355,10 @@ class CascadeApp(App):
     # ── Spinner management ────────────────────────────────────
 
     async def _show_spinner(self, message: str = "Thinking") -> None:
-        """Mount a spinner widget before the prompt."""
+        """Mount a spinner widget at the end of chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         self._spinner = SpinnerWidget(message, classes="spinner")
-        await container.mount(self._spinner, before=target)
+        await container.mount(self._spinner)
         container.scroll_end(animate=False)
 
     async def _remove_spinner(self) -> None:
@@ -380,21 +378,19 @@ class CascadeApp(App):
         """Add a user message bubble to the chat history."""
         from rich.text import Text
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         
         msg = Static(Text(text), id=f"user-msg-{self._message_count}", classes="user-msg-box")
         msg.border_title = "User"
         
-        await container.mount(msg, before=target)
+        await container.mount(msg)
         container.scroll_end(animate=False)
 
     async def append_system_message(self, text: str) -> None:
         """Add a system/info message to the chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         await container.mount(
-            CopyableTextArea(text, classes="message-area system-msg"), before=target,
+            CopyableTextArea(text, classes="message-area system-msg"),
         )
         container.scroll_end(animate=False)
         self.query_one("#prompt-input", Input).focus()
@@ -402,9 +398,8 @@ class CascadeApp(App):
     async def append_rich_message(self, markup: str) -> None:
         """Add a Rich-markup message as a Static widget (supports colors/emoji)."""
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         msg = Static(markup, classes="rich-msg")
-        await container.mount(msg, before=target)
+        await container.mount(msg)
         container.scroll_end(animate=False)
         self.query_one("#prompt-input", Input).focus()
 
@@ -413,12 +408,11 @@ class CascadeApp(App):
     ) -> None:
         """Add a tool execution message to the chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        target = self.query_one("#input-section", Vertical)
         await container.mount(
-            Static(f"  {label}", classes="tool-label"), before=target,
+            Static(f"  {label}", classes="tool-label"),
         )
         await container.mount(
-            CopyableTextArea(content, classes=f"message-area {css_class}"), before=target,
+            CopyableTextArea(content, classes=f"message-area {css_class}"),
         )
         container.scroll_end(animate=False)
 
@@ -448,11 +442,9 @@ class CascadeApp(App):
         self.query_one("#prompt-input", Input).focus()
 
     def action_clear_chat(self) -> None:
-        """Ctrl+L: Clear chat history, keep input section."""
+        """Ctrl+L: Clear chat history."""
         container = self.query_one("#chat-history", VerticalScroll)
-        for child in list(container.children):
-            if child.id != "input-section":
-                child.remove()
+        container.remove_children()
 
     def action_copy_last_reply(self) -> None:
         """Ctrl+Y: Copy the last AI reply to clipboard."""
