@@ -16,6 +16,7 @@ def ctx():
     repl.router.register(ExitCommand())
     repl.router.register(ClearCommand())
     repl.append_system_message = AsyncMock()
+    repl.append_rich_message = AsyncMock()
 
     engine = MagicMock()
     engine.messages = [
@@ -36,7 +37,7 @@ def ctx():
 async def test_help_runs_without_error(ctx):
     cmd = HelpCommand()
     await cmd.execute(ctx, "")
-    ctx.repl.append_system_message.assert_called_once()
+    ctx.repl.append_rich_message.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -44,7 +45,7 @@ async def test_help_output_contains_commands(ctx):
     """Help output should include registered command names."""
     cmd = HelpCommand()
     await cmd.execute(ctx, "")
-    output_text = ctx.repl.append_system_message.call_args[0][0]
+    output_text = ctx.repl.append_rich_message.call_args[0][0]
     assert "/help" in output_text
     assert "/exit" in output_text
     assert "/clear" in output_text

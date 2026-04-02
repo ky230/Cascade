@@ -42,7 +42,8 @@ Screen {
 }
 
 #prompt-container {
-    height: 1;
+    height: auto;
+    max-height: 10;
     layout: horizontal;
     margin: 1 0 0 1;
 }
@@ -135,7 +136,6 @@ Screen {
     border: none;
     margin: 0 1;
     min-height: 1;
-    max-height: 3;
     height: auto;
 }
 
@@ -151,7 +151,8 @@ Screen {
 /* ── Input ── */
 
 #prompt-input {
-    height: 1;
+    height: auto;
+    max-height: 10;
     width: 1fr;
     background: #0d1117;
     padding: 0 0;

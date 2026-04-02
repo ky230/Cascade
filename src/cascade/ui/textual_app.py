@@ -15,6 +15,7 @@ from typing import Optional
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Vertical
 from textual.widgets import Footer, Static, Input
+from cascade.ui.widgets import PromptInput
 from textual.binding import Binding
 from textual import on
 
@@ -27,7 +28,7 @@ from cascade.tools.file_tools import FileReadTool, FileWriteTool
 from cascade.tools.search_tools import GrepTool, GlobTool
 from cascade.bootstrap.system_prompt import build_system_prompt
 from cascade.commands import CommandRouter, CommandContext
-from cascade.ui.widgets import CopyableTextArea, SpinnerWidget
+from cascade.ui.widgets import CopyableTextArea, SpinnerWidget, CopyableStatic
 from cascade.ui.command_palette import CommandPalette
 from cascade.ui.styles import CASCADE_TCSS
 from cascade.ui.banner import VERSION, ASCII_ART, _LOGO, _L, _R
@@ -41,7 +42,7 @@ class CascadeApp(App):
 
     BINDINGS = [
         Binding("escape", "focus_input", "输入框", show=False),
-        Binding("ctrl+q", "quit", "退出", show=False),
+        Binding("ctrl+c", "quit", "退出", show=False, priority=True),
         Binding("ctrl+y", "copy_last_reply", "复制上条", show=False),
         Binding("ctrl+l", "clear_chat", "清屏", show=False),
     ]
@@ -53,6 +54,7 @@ class CascadeApp(App):
         self._last_reply = ""
         self._spinner: Optional[SpinnerWidget] = None
         self._generating = False
+        self._permission_future: Optional[asyncio.Future] = None
 
         # ── Core engine (mirrors old CascadeRepl) ──
         self.store = Store()
@@ -84,47 +86,50 @@ class CascadeApp(App):
         self.router.register(ModelCommand())
 
     def on_key(self, event) -> None:
-        """Globally intercept keys: palette nav + type-anywhere."""
+        """Globally intercept keys: palette nav + type-anywhere.
+
+        Note: Enter is handled exclusively by PromptInput._on_key.
+        This handler only manages palette navigation (↑↓/Tab/Esc).
+        """
         # ── Palette navigation (when visible) ──
         try:
             palette = self.query_one("#cmd-palette", CommandPalette)
-            if palette.is_visible:
-                if event.key == "up":
-                    palette.move_up()
+            if palette.display:
+                if event.key in ("up", "down", "tab", "escape"):
                     event.stop()
                     event.prevent_default()
-                    return
-                elif event.key == "down":
-                    palette.move_down()
-                    event.stop()
-                    event.prevent_default()
-                    return
-                elif event.key == "tab":
-                    if palette.select_current():
-                        event.stop()
-                        event.prevent_default()
+
+                    if event.key == "up":
+                        palette.move_up()
                         return
-                elif event.key == "escape":
-                    palette.display = False
-                    event.stop()
-                    event.prevent_default()
-                    return
-                elif event.key == "enter":
-                    if palette.select_current():
-                        event.stop()
-                        event.prevent_default()
+                    elif event.key == "down":
+                        palette.move_down()
+                        return
+                    elif event.key == "tab":
+                        if not palette._matches:
+                            return
+                        trigger = palette._matches[palette._highlight]["trigger"]
+                        palette.display = False
+                        inp = self.query_one("#prompt-input", PromptInput)
+                        inp.text = trigger + " "
+                        inp.action_cursor_line_end()
+                        inp.focus()
+                        return
+                    elif event.key == "escape":
+                        palette.display = False
                         return
         except Exception:
             pass
 
+
         # ── Type-anywhere: forward printable keys to input ──
         if event.is_printable:
             try:
-                inp = self.query_one("#prompt-input", Input)
+                inp = self.query_one("#prompt-input", PromptInput)
                 if not inp.has_focus:
                     inp.focus()
-                    inp.value += event.character
-                    inp.cursor_position = len(inp.value)
+                    inp.insert(event.character)
+                    inp.action_cursor_line_end()
                     event.stop()
             except Exception:
                 pass
@@ -143,7 +148,7 @@ class CascadeApp(App):
             Vertical(
                 Horizontal(
                     Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
-                    Input(id="prompt-input"),
+                    PromptInput(id="prompt-input"),
                     id="prompt-container",
                 ),
                 CommandPalette(router=self.router, id="cmd-palette"),
@@ -188,15 +193,17 @@ class CascadeApp(App):
         )
 
     def on_mount(self) -> None:
-        self.query_one("#prompt-input", Input).focus()
+        self.query_one("#prompt-input", PromptInput).focus()
 
     # ── Input handling ────────────────────────────────────────
 
-    def on_input_changed(self, event: Input.Changed) -> None:
+    @on(PromptInput.Changed)
+    def on_input_changed(self, event: PromptInput.Changed) -> None:
         """Show/hide command palette based on input content."""
         try:
             palette = self.query_one("#cmd-palette", CommandPalette)
-            value = event.value.strip()
+            # TextArea.Changed event has .text_area (the widget) and access .text
+            value = event.text_area.text.strip() if hasattr(event, "text_area") else getattr(event, "value", "").strip()
             if value.startswith("/") and " " not in value:
                 palette.filter(value)
                 container = self.query_one("#chat-history", VerticalScroll)
@@ -208,27 +215,38 @@ class CascadeApp(App):
 
     @on(CommandPalette.Selected)
     def handle_command_palette_selected(self, event: CommandPalette.Selected) -> None:
-        """Fill input with selected command from palette."""
-        inp = self.query_one("#prompt-input", Input)
-        inp.value = event.trigger + " "
-        
-        # Hide palette and focus input
+        """Fill input with selected command from palette and execute immediately."""
+        inp = self.query_one("#prompt-input", PromptInput)
         palette = self.query_one("#cmd-palette", CommandPalette)
         palette.display = False
-        inp.cursor_position = len(inp.value)
-        inp.focus()
+        inp.text = event.trigger
+        inp.post_message(PromptInput.Submitted(inp, event.trigger))
 
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
+    @on(PromptInput.Submitted)
+    async def on_input_submitted(self, event: PromptInput.Submitted) -> None:
         """Handle Enter in the input box."""
         user_text = event.value.strip()
         if not user_text:
             return
+
+        # ── Permission gate: if waiting for y/n, resolve the future ──
+        if self._permission_future and not self._permission_future.done():
+            input_widget = self.query_one("#prompt-input", PromptInput)
+            input_widget.text = ""
+            approved = (user_text.lower() == "y")
+            self._permission_future.set_result(approved)
+            if approved:
+                await self.append_rich_message("[green]✓ Approved[/green]")
+            else:
+                await self.append_rich_message("[red]✗ Denied[/red]")
+            return
+
         if self._generating:
             self.notify("⏳ 正在生成中，请稍候...")
             return
 
-        input_widget = self.query_one("#prompt-input", Input)
-        input_widget.value = ""
+        input_widget = self.query_one("#prompt-input", PromptInput)
+        input_widget.text = ""
 
         # Hide palette on submit
         try:
@@ -238,6 +256,7 @@ class CascadeApp(App):
 
         # ── Slash command routing ──
         if user_text.startswith("/"):
+            await self.append_user_message(user_text)
             cmd_ctx = CommandContext(
                 console=None,
                 engine=self.engine,
@@ -262,7 +281,10 @@ class CascadeApp(App):
         await self.append_user_message(user_text)
 
         # ── AI generation ──
-        await self._run_generation(user_text)
+        # Run generation in a background worker to avoid blocking the message pump.
+        # This prevents deadlocks when generating waits for user permission input.
+        from textual.worker import Worker
+        self.run_worker(self._run_generation(user_text), exclusive=True)
 
     # ── AI Generation with streaming ─────────────────────────
 
@@ -288,16 +310,39 @@ class CascadeApp(App):
         def on_token(t: str) -> None:
             tokens.append(t)
 
-        def on_tool_start(name: str, args: dict) -> None:
-            self.call_from_thread(self._handle_tool_start, name, args)
+        async def on_tool_start(name: str, args: dict) -> None:
+            await self._handle_tool_start(name, args)
 
-        def on_tool_end(name: str, tool_result) -> None:
-            self.call_from_thread(self._handle_tool_end, name, tool_result)
+        async def on_tool_end(name: str, tool_result) -> None:
+            await self._handle_tool_end(name, tool_result)
 
         async def ask_user(prompt_msg: str) -> bool:
-            # TODO: Implement modal dialog for permission prompts
-            # For now, auto-approve (matches old behavior with AUTO mode)
-            return True
+            """Show permission prompt and wait for user y/n input."""
+            # Stop spinner so user can see the prompt clearly
+            await self._remove_spinner()
+            
+            loop = asyncio.get_event_loop()
+            self._permission_future = loop.create_future()
+            
+            # Temporarily clear _generating so the prompt is fully interactive
+            self._generating = False
+            
+            await self.append_rich_message(
+                f"[bold yellow]⚠️ Permission Request[/bold yellow]\n"
+                f"[dim]{prompt_msg}[/dim]\n"
+                f"[bold]Enter [green]y[/green] to approve, anything else to deny:[/bold]"
+            )
+            # Show the input so user can type y/n
+            self._show_prompt()
+            try:
+                result = await self._permission_future
+            finally:
+                self._permission_future = None
+                self._generating = True  # Restore for remaining generation
+                # Hide prompt again and restart spinner for next phase
+                self._hide_prompt()
+                await self._show_spinner("Generating")
+            return result
 
         try:
             result = await self.engine.submit(
@@ -333,34 +378,33 @@ class CascadeApp(App):
         self._generating = False
         self._show_prompt()
 
-    def _handle_tool_start(self, name: str, args: dict) -> None:
-        """Sync callback for tool start — schedules async UI update."""
-        async def _do():
-            await self._remove_spinner()
-            args_preview = str(args)
-            if len(args_preview) > 200:
-                args_preview = args_preview[:200] + "..."
-            await self.append_tool_message(f"⚙ {name}", args_preview, css_class="tool-msg")
-            await self._show_spinner("Executing")
-        asyncio.ensure_future(_do())
+    async def _handle_tool_start(self, name: str, args: dict) -> None:
+        """Async callback for tool start — await UI updates."""
+        await self._remove_spinner()
+        args_preview = str(args)
+        if len(args_preview) > 200:
+            args_preview = args_preview[:200] + "..."
+        await self.append_tool_message(f"⚙ {name}", args_preview, css_class="tool-msg")
+        await self._show_spinner("Executing")
 
-    def _handle_tool_end(self, name: str, tool_result) -> None:
-        """Sync callback for tool end — schedules async UI update."""
-        async def _do():
-            await self._remove_spinner()
-            output = tool_result.output if hasattr(tool_result, 'output') else str(tool_result)
-            is_error = tool_result.is_error if hasattr(tool_result, 'is_error') else False
-            display = output[:500] + "\n..." if len(output) > 500 else output
-            label = f"✗ Error: {name}" if is_error else f"✓ Result: {name}"
-            css_class = "tool-msg-error" if is_error else "tool-msg"
-            await self.append_tool_message(label, display, css_class=css_class)
+    async def _handle_tool_end(self, name: str, tool_result) -> None:
+        """Async callback for tool end — await UI updates."""
+        await self._remove_spinner()
+        output = tool_result.output if hasattr(tool_result, 'output') else str(tool_result)
+        is_error = tool_result.is_error if hasattr(tool_result, 'is_error') else False
+        display = output[:500] + "\n..." if len(output) > 500 else output
+        label = f"✗ Error: {name}" if is_error else f"✓ Result: {name}"
+        css_class = "tool-msg-error" if is_error else "tool-msg"
+        await self.append_tool_message(label, display, css_class=css_class)
+        # Only show spinner if the tool succeeded (more rounds expected).
+        if not is_error:
             await self._show_spinner("Generating")
-        asyncio.ensure_future(_do())
 
     # ── Spinner management ────────────────────────────────────
 
     async def _show_spinner(self, message: str = "Thinking") -> None:
         """Mount a spinner widget before the input section."""
+        await self._remove_spinner()  # Prevent orphan spinners
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
         self._spinner = SpinnerWidget(message, classes="spinner")
@@ -401,16 +445,16 @@ class CascadeApp(App):
             CopyableTextArea(text, language=language, classes="message-area system-msg"), before=target,
         )
         container.scroll_end(animate=False)
-        self.query_one("#prompt-input", Input).focus()
+        self.query_one("#prompt-input", PromptInput).focus()
 
     async def append_rich_message(self, markup: str) -> None:
         """Add a Rich-markup message as a Static widget (supports colors/emoji)."""
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
-        msg = Static(markup, classes="rich-msg")
+        msg = CopyableStatic(markup, classes="rich-msg system-msg")
         await container.mount(msg, before=target)
         container.scroll_end(animate=False)
-        self.query_one("#prompt-input", Input).focus()
+        self.query_one("#prompt-input", PromptInput).focus()
 
     async def append_tool_message(
         self, label: str, content: str, css_class: str = "tool-msg"
@@ -441,10 +485,17 @@ class CascadeApp(App):
 
     def _show_prompt(self) -> None:
         """Show the ❯ prompt and input, then focus."""
-        self.query_one("#prompt-container", Horizontal).display = True
-        self.query_one("#prompt-input", Input).focus()
-        # Delay scroll_end until after Textual recalculates layout
-        self.call_after_refresh(self._scroll_chat_end)
+        container = self.query_one("#prompt-container", Horizontal)
+        container.display = True
+        inp = self.query_one("#prompt-input", PromptInput)
+        
+        # Enable typing just in case
+        inp.disabled = False
+        
+        def _do_focus():
+            inp.focus()
+            self._scroll_chat_end()
+        self.call_after_refresh(_do_focus)
 
     def _scroll_chat_end(self) -> None:
         """Scroll chat history to bottom (called after layout refresh)."""
@@ -452,7 +503,7 @@ class CascadeApp(App):
 
     def action_focus_input(self) -> None:
         """Escape: Focus the input box and scroll to it."""
-        self.query_one("#prompt-input", Input).focus()
+        self.query_one("#prompt-input", PromptInput).focus()
         self.call_after_refresh(self._scroll_chat_end)
 
     def action_clear_chat(self) -> None:
@@ -497,6 +548,6 @@ class CascadeApp(App):
                 self.notify(f"✓ Switched to {result['display']}")
             else:
                 self.notify("ℹ Cancelled")
-            self.query_one("#prompt-input", Input).focus()
+            self.query_one("#prompt-input", PromptInput).focus()
 
         self.push_screen(ModelPickerScreen(current_provider, current_model), callback=_on_result)

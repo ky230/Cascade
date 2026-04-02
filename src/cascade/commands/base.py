@@ -25,6 +25,15 @@ class CommandContext:
             # Legacy REPL mode
             self.console.print(text)
 
+    async def output_rich(self, markup: str) -> None:
+        """Output Rich markup — rendered as Static in Textual, Rich print in legacy."""
+        if hasattr(self.repl, 'append_rich_message'):
+            await self.repl.append_rich_message(markup)
+        elif self.console:
+            self.console.print(markup)
+        else:
+            await self.output(markup)
+
 
 class BaseCommand(ABC):
     """Abstract base for all slash commands."""

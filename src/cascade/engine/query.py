@@ -49,8 +49,8 @@ class QueryEngine:
         self,
         user_input: str,
         on_token: Callable[[str], None] | None = None,
-        on_tool_start: Callable[[str, dict], None] | None = None,
-        on_tool_end: Callable[[str, ToolResult], None] | None = None,
+        on_tool_start: Callable[[str, dict], Awaitable[None]] | None = None,
+        on_tool_end: Callable[[str, ToolResult], Awaitable[None]] | None = None,
         ask_user: Callable[[str], Awaitable[bool]] | None = None,
     ) -> TurnResult:
         """Process a user message through the agentic tool loop."""
@@ -99,9 +99,6 @@ class QueryEngine:
                 tool_args = tc["arguments"]
                 tool_id = tc["id"]
 
-                if on_tool_start:
-                    on_tool_start(tool_name, tool_args)
-
                 if abort_remaining:
                     # Silently fill remaining tool IDs so message history stays valid
                     self.messages.append({
@@ -110,6 +107,10 @@ class QueryEngine:
                         "content": "Cancelled: user denied a previous tool call.",
                     })
                     continue
+
+                # Notify UI of tool start BEFORE asking for permission
+                if on_tool_start:
+                    await on_tool_start(tool_name, tool_args)
 
                 # Permission check
                 if self.permissions and self.registry:
@@ -122,7 +123,7 @@ class QueryEngine:
                                 is_error=True,
                             )
                             if on_tool_end:
-                                on_tool_end(tool_name, tool_result)
+                                await on_tool_end(tool_name, tool_result)
                             all_tool_uses.append({
                                 "name": tool_name,
                                 "input": tool_args,
@@ -143,7 +144,7 @@ class QueryEngine:
                     tool_result = ToolResult(output=f"No registry for {tool_name}", is_error=True)
 
                 if on_tool_end:
-                    on_tool_end(tool_name, tool_result)
+                    await on_tool_end(tool_name, tool_result)
 
                 all_tool_uses.append({
                     "name": tool_name,

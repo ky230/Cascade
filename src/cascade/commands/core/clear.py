@@ -17,4 +17,4 @@ class ClearCommand(BaseCommand):
         if hasattr(ctx.repl, 'action_clear_chat'):
             ctx.repl.action_clear_chat()
 
-        await ctx.output("✓ Conversation history cleared.")
+        await ctx.output_rich("[#00d7af]✓ Conversation history cleared.[/#00d7af]")

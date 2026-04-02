@@ -7,6 +7,42 @@ from textual.binding import Binding
 from textual.reactive import reactive
 
 
+class CopyableStatic(Static):
+    """A focusable Static widget that copies its entire content when 'c' is pressed.
+    
+    Used for rich colored text where partial mouse selection via 'textArea' is not
+    possible, but we still want quick copy-to-clipboard functionality.
+    """
+    
+    can_focus = True
+    
+    BINDINGS = [
+        Binding("c", "copy_text", "Copy Content", show=False),
+    ]
+    
+    def action_copy_text(self) -> None:
+        try:
+            renderable = self.render()
+            text = ""
+            
+            if hasattr(renderable, "plain"):
+                text = renderable.plain
+            elif isinstance(renderable, str):
+                from rich.text import Text
+                # Parse the markup string to extract plain text without tags
+                text = Text.from_markup(renderable).plain
+            else:
+                text = str(renderable)
+                
+            pyperclip.copy(text)
+            
+            if hasattr(self, "app"):
+                self.app.notify("📋 已复制文本块", timeout=2.0)
+        except Exception as e:
+            if hasattr(self, "app"):
+                self.app.notify(f"❌ 复制失败: {e}", severity="error")
+
+
 class CopyableTextArea(TextArea):
     """Read-only TextArea with mouse drag-selection + 'c' key copy.
 
@@ -109,3 +145,75 @@ class SpinnerWidget(Static):
         if self._timer:
             self._timer.stop()
             self._timer = None
+
+from textual.message import Message
+
+class PromptInput(TextArea):
+    """Multiline input for prompt.
+
+    Enter  → submit (fires Submitted message)
+    Ctrl+N → insert newline
+
+    We must override ``_on_key`` because TextArea hard-codes
+    ``{"enter": "\\n"}`` inside its own ``_on_key``, which runs
+    *before* any BINDINGS, making a Binding("enter", ...) useless.
+    """
+
+    class Submitted(Message):
+        """Fired when the user presses Enter to submit their prompt."""
+        def __init__(self, prompt_input: 'PromptInput', value: str) -> None:
+            self.input = prompt_input
+            self.value = value
+            super().__init__()
+
+    def on_mount(self) -> None:
+        self.show_line_numbers = False
+
+    async def _on_key(self, event) -> None:
+        """Intercept Enter and Ctrl+N before TextArea's default handler.
+
+        PromptInput is the SINGLE AUTHORITY for Enter handling.
+        Palette navigation keys (up/down/tab/escape) bubble to App.on_key.
+        """
+        # Check palette visibility once
+        palette_visible = False
+        palette = None
+        try:
+            from cascade.ui.command_palette import CommandPalette
+            palette = self.app.query_one("#cmd-palette", CommandPalette)
+            palette_visible = palette.display  # use .display, not .is_visible
+        except Exception:
+            pass
+
+        # Palette visible: let UP/DOWN/TAB/ESCAPE bubble to App.on_key
+        if palette_visible and event.key in ("up", "down", "tab", "escape"):
+            return
+
+        if event.key == "enter":
+            # Enter is ALWAYS handled here — never let it bubble
+            event.stop()
+            event.prevent_default()
+
+            # Case 1: Palette visible → select command and submit
+            if palette_visible and palette is not None and palette._matches:
+                trigger = palette._matches[palette._highlight]["trigger"]
+                palette.display = False
+                self.text = trigger
+                self.post_message(self.Submitted(self, trigger))
+                return
+
+            # Case 2: Normal submit
+            if self.text.strip():
+                self.post_message(self.Submitted(self, self.text))
+            return
+
+        if event.key == "ctrl+n":
+            # Ctrl+N = insert a real newline character
+            event.stop()
+            event.prevent_default()
+            start, end = self.selection
+            self._replace_via_keyboard("\n", start, end)
+            return
+
+        # Everything else: delegate to parent TextArea._on_key
+        await super()._on_key(event)

@@ -22,15 +22,19 @@ class HelpCommand(BaseCommand):
             "Memory": ("🧩", "#af87ff"),
         }
 
-        lines = ["# ═══ Cascade Commands ═══", ""]
+        lines = ["[bold #5fd7ff]═══ Cascade Commands ═══[/bold #5fd7ff]", ""]
         for cat_name, cmds in groups.items():
-            emoji, _ = cat_style.get(cat_name, ("▪", ""))
-            lines.append(f"### {emoji} {cat_name}")
+            emoji, color = cat_style.get(cat_name, ("▪", "dim"))
+            lines.append(f"  {emoji} [bold {color}]{cat_name}[/bold {color}]")
+            lines.append(f"  [dim]{'─' * (len(cat_name) + 4)}[/dim]")
             for cmd in sorted(cmds, key=lambda c: c.name):
                 aliases = ""
                 if cmd.aliases:
-                    aliases = f" *({', '.join(cmd.aliases)})*"
-                lines.append(f"- `/{cmd.name}`{aliases} : {cmd.description}")
+                    aliases = f" [dim]({', '.join(cmd.aliases)})[/dim]"
+                lines.append(
+                    f"    [bold #00d7af]/{cmd.name}[/bold #00d7af]{aliases}"
+                    f"  [dim]{cmd.description}[/dim]"
+                )
             lines.append("")
-        lines.append("> Tip: Type `/` for command autocomplete dropdown")
-        await ctx.output("\n".join(lines))
+        lines.append("[dim]Tip: Type / for command autocomplete dropdown[/dim]")
+        await ctx.output_rich("\n".join(lines))
