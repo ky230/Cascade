@@ -53,6 +53,10 @@ Screen {
 #chat-history {
     background: #0d1117;
     height: 1fr;
+    scrollbar-background: #0d1117;
+    scrollbar-color: #30363d;
+    scrollbar-color-hover: #5fd7ff;
+    scrollbar-color-active: #5fd7ff;
 }
 
 /* ── Message labels ── */
