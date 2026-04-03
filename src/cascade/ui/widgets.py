@@ -37,10 +37,10 @@ class CopyableStatic(Static):
             pyperclip.copy(text)
             
             if hasattr(self, "app"):
-                self.app.notify("📋 已复制文本块", timeout=2.0)
+                self.app.notify("📋 Text block copied", timeout=2.0)
         except Exception as e:
             if hasattr(self, "app"):
-                self.app.notify(f"❌ 复制失败: {e}", severity="error")
+                self.app.notify(f"❌ Copy failed: {e}", severity="error")
 
 
 class CopyableTextArea(TextArea):
@@ -97,11 +97,11 @@ class CopyableTextArea(TextArea):
         """Copy text to clipboard: pyperclip first, OSC 52 fallback."""
         try:
             pyperclip.copy(text)
-            self.notify(f"✅ 已复制 {len(text)} 字符")
+            self.notify(f"✅ Copied {len(text)} chars")
         except Exception:
             try:
                 self.app.copy_to_clipboard(text)
-                self.notify(f"✅ 已复制 {len(text)} 字符 (OSC52)")
+                self.notify(f"✅ Copied {len(text)} chars (OSC52)")
             except Exception as e:
                 self.notify(f"❌ {str(e)}")
 

@@ -42,10 +42,10 @@ class CascadeApp(App):
     ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
-        Binding("escape", "focus_input", "输入框", show=False),
-        Binding("ctrl+c", "quit", "退出", show=False, priority=True),
-        Binding("ctrl+y", "copy_last_reply", "复制上条", show=False),
-        Binding("ctrl+l", "clear_chat", "清屏", show=False),
+        Binding("escape", "focus_input", "Focus input", show=False),
+        Binding("ctrl+c", "quit", "Quit", show=False, priority=True),
+        Binding("ctrl+y", "copy_last_reply", "Copy last reply", show=False),
+        Binding("ctrl+l", "clear_chat", "Clear chat", show=False),
     ]
 
     def __init__(self, client, **kwargs):
@@ -263,7 +263,7 @@ class CascadeApp(App):
             return
 
         if self._generating:
-            self.notify("⏳ 正在生成中，请稍候...")
+            self.notify("⏳ Generating, please wait...")
             return
 
         input_widget = self.query_one("#prompt-input", PromptInput)
@@ -538,16 +538,16 @@ class CascadeApp(App):
     def action_copy_last_reply(self) -> None:
         """Ctrl+Y: Copy the last AI reply to clipboard."""
         if not self._last_reply:
-            self.notify("ℹ 没有可复制的内容")
+            self.notify("ℹ Nothing to copy")
             return
             
         try:
             import pyperclip
             pyperclip.copy(self._last_reply)
-            self.notify(f"✅ 已复制 {len(self._last_reply)} 字符")
+            self.notify(f"✅ Copied {len(self._last_reply)} chars")
         except Exception:
             self.copy_to_clipboard(self._last_reply)
-            self.notify("✅ 已复制 (OSC52)")
+            self.notify("✅ Copied (OSC52)")
 
     def update_footer(self) -> None:
         """Update the footer text (e.g. after switching models)."""
