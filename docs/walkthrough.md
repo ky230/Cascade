@@ -347,3 +347,43 @@ a5a5e0c  chore: add textual and pyperclip dependencies for TUI migration
 
 ### Next Steps
 → See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
+
+---
+
+## Phase 8.5.3: Input History (⬆️⬇️ Arrow Key Recall + JSONL Persistence) ✅
+- **Completed:** 2026-04-03
+- **Branch:** `feat/phase8-slash-commands`
+
+### Changes
+- **`src/cascade/ui/input_history.py`** — New `InputHistory` class [NEW]
+  - In-memory buffer (newest-at-end list) backed by JSONL disk file
+  - `add()` — records submissions with consecutive deduplication
+  - `navigate_up()` / `navigate_down()` — bidirectional traversal with boundary clamping
+  - `stash()` / `stashed_input` — preserves current draft when entering history mode
+  - Persistent storage at `~/.cascade/history.jsonl` (Claude-style JSONL format)
+  - Each entry: `{"display": "...", "type": "prompt|command", "ts": <unix>}`
+  - Hard cap: `MAX_HISTORY = 2000`, auto-truncation when disk file exceeds 2× cap
+- **`src/cascade/ui/widgets.py`** — `PromptInput` history wiring
+  - Added `__init__()` instantiating `InputHistory` on widget creation
+  - Added `add_to_history(text)` public method for external callers
+  - Refactored `_on_key()` to intercept ⬆️/⬇️:
+    - ⬆️ triggers history recall only when cursor is on **first line** (multiline-safe)
+    - ⬇️ triggers only on **last line** or when actively browsing
+    - History mode has **priority over palette navigation** — browsing history through a `/` command won't get hijacked by the auto-opening CommandPalette
+    - `Enter` resets history navigation state
+- **`src/cascade/ui/textual_app.py`** — Submission recording
+  - `on_input_submitted()` calls `input_widget.add_to_history(user_text)` before clearing input
+
+### Design (inspired by competitive analysis)
+| Feature | Claude Code | Gemini CLI | Codex CLI | **Cascade** |
+|---------|-------------|------------|-----------|-------------|
+| Storage format | JSONL | Plain text lines | SQLite-like | **JSONL** (Claude) |
+| Capacity cap | ∞ (lazy load) | 100 | ∞ | **2000** (Gemini-style) |
+| Dedup | ✗ | ✓ | ✓ | **✓** (Codex/Gemini) |
+| Cross-session | ✓ | ✓ | ✓ | **✓** |
+| Draft stash | ✓ | ✓ | ✓ | **✓** |
+
+### Commits
+```
+a32e02b  feat(ui): add terminal-style input history with JSONL persistence
+```
