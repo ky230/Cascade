@@ -38,20 +38,50 @@ Screen {
 
 #input-section {
     height: auto;
-    padding-bottom: 12;
+    padding-bottom: 0;
 }
 
 #prompt-container {
     height: auto;
-    max-height: 10;
+    min-height: 1;
+    width: 1fr;
     layout: horizontal;
-    margin: 1 0 0 1;
+    align: left middle;
+    margin: 1 0 0 0;
+    padding: 0 1;
+    background: #1c2128;
+    border-top: inner #1c2128;
+    border-bottom: inner #1c2128;
+    border-left: none;
+    border-right: none;
+    layers: base surface overlay;
 }
 
 #prompt-label {
     height: 1;
     width: 2;
-    background: #0d1117;
+    background: transparent;
+    layer: surface;
+}
+
+#prompt-input {
+    layer: surface;
+    width: 1fr;
+    background: transparent;
+}
+
+#prompt-input .text-area--cursor-line {
+    background: transparent;
+}
+
+#prompt-placeholder {
+    content-align: left middle;
+    height: 1;
+    color: #484f58;
+    background: transparent;
+    layer: overlay;
+    position: absolute;
+    offset: 2 0;
 }
 
 /* ── Chat history scroll container ── */
@@ -152,12 +182,20 @@ Screen {
 
 #prompt-input {
     height: auto;
-    max-height: 10;
+    max-height: 15;
     width: 1fr;
-    background: #0d1117;
+    background: transparent;
     padding: 0 0;
     margin: 0 0;
     border: none;
+}
+
+#prompt-input:focus {
+    border: none;
+}
+
+PromptInput > .text-area--cursor-line {
+    background: transparent;
 }
 
 Input {

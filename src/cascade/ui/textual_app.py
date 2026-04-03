@@ -14,11 +14,11 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Vertical
-from textual.widgets import Footer, Static, Input
+from textual.widgets import Footer, Static, Input, Label
 from cascade.ui.widgets import PromptInput
 from cascade.ui.model_palette import ModelPalette
 from textual.binding import Binding
-from textual import on
+from textual import on, events
 
 from cascade.engine.query import QueryEngine, QueryEngineConfig
 from cascade.state.store import Store
@@ -169,6 +169,7 @@ class CascadeApp(App):
                 Horizontal(
                     Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
                     PromptInput(id="prompt-input"),
+                    Label("Cascade standby. Enter prompt or /command...", id="prompt-placeholder"),
                     id="prompt-container",
                 ),
                 CommandPalette(router=self.router, id="cmd-palette"),
@@ -218,15 +219,24 @@ class CascadeApp(App):
 
     # ── Input handling ────────────────────────────────────────
 
+    @on(events.Click, "#prompt-placeholder")
+    def on_placeholder_click(self, event: events.Click) -> None:
+        """Forward clicks on the placeholder strictly to the input field."""
+        self.query_one("#prompt-input").focus()
+        event.stop()
+
     @on(PromptInput.Changed)
     def on_input_changed(self, event: PromptInput.Changed) -> None:
-        """Show/hide command palette based on input content."""
+        """Show/hide command palette based on input content, and manage placeholder."""
         try:
+            value = event.text_area.text if hasattr(event, "text_area") else getattr(event, "value", "")
+            # Toggle placeholder visibility
+            placeholder = self.query_one("#prompt-placeholder")
+            placeholder.display = len(value) == 0
+
             palette = self.query_one("#cmd-palette", CommandPalette)
-            # TextArea.Changed event has .text_area (the widget) and access .text
-            value = event.text_area.text.strip() if hasattr(event, "text_area") else getattr(event, "value", "").strip()
             if value.startswith("/") and " " not in value:
-                palette.filter(value)
+                palette.filter(value.strip())
                 container = self.query_one("#chat-history", VerticalScroll)
                 container.scroll_end(animate=False)
             else:
