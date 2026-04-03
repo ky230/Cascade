@@ -70,6 +70,8 @@ class CascadeApp(App):
         # ── Message Queue & Query Guard (replaces old _generating bool) ──
         self._input_queue = MessageQueueManager()
         self._query_guard = QueryGuard()
+        self._generation_worker = None       # Textual Worker reference
+        self._generation_cancelled = False   # True when Esc cancels mid-generation
 
         # ── Core engine (mirrors old CascadeRepl) ──
         self.store = Store()
@@ -177,7 +179,8 @@ class CascadeApp(App):
             Static(self._build_banner_markup(), id="banner"),
             # ── Status bar (model info) ──
             Static(self._build_status_markup(), id="status-bar"),
-            Static("Type 'exit' or 'quit' to close. Ctrl+N for newline. Select text and press 'c' to copy.", id="help-text"),
+            Static("[dim]Type [bold white]/help[/] for basics. [bold white][Ctrl+N][/] for newline. Select text and press [bold white]'C'[/] to copy.[/dim]", id="help-text"),
+
             
             Vertical(
                 QueuePreview(id="queue-preview"),
@@ -385,16 +388,15 @@ class CascadeApp(App):
                 )
                 return
 
-        # Legacy exit
-        if user_text.lower() in ["exit", "quit"]:
-            self.exit()
-            return
+
 
         # ── Render user message ──
         await self.append_user_message(user_text)
 
         # ── AI generation ──
-        self.run_worker(self._run_generation(user_text), exclusive=True)
+        self._generation_worker = self.run_worker(
+            self._run_generation(user_text), exclusive=True
+        )
 
     async def _execute_queued_input(self, commands: list[QueuedCommand]) -> None:
         """Execute dequeued commands (called by queue processor).
@@ -418,7 +420,9 @@ class CascadeApp(App):
             await self.append_user_message(cmd.value)
 
         combined = "\n\n".join(c.value for c in commands)
-        self.run_worker(self._run_generation(combined), exclusive=True)
+        self._generation_worker = self.run_worker(
+            self._run_generation(combined), exclusive=True
+        )
 
     # ── AI Generation with streaming ─────────────────────────
 
@@ -432,6 +436,8 @@ class CascadeApp(App):
         if generation is None:
             logger.warning("_run_generation: QueryGuard already running, skipping")
             return
+
+        self._generation_cancelled = False
 
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
@@ -500,18 +506,20 @@ class CascadeApp(App):
             # ── Render response BEFORE transitioning guard state ──
             await self._remove_spinner()
 
-            final_text = "".join(tokens) if tokens else (result.output or "")
-            self._last_reply = final_text
+            # If Esc cancelled during generation, skip rendering stale response
+            if not self._generation_cancelled:
+                final_text = "".join(tokens) if tokens else (result.output or "")
+                self._last_reply = final_text
 
-            if final_text.strip():
-                ai_area = CopyableTextArea(
-                    final_text,
-                    id=f"ai-msg-{msg_id}",
-                    classes="message-area ai-msg",
-                )
-                await container.mount(ai_area, before=target)
+                if final_text.strip():
+                    ai_area = CopyableTextArea(
+                        final_text,
+                        id=f"ai-msg-{msg_id}",
+                        classes="message-area ai-msg",
+                    )
+                    await container.mount(ai_area, before=target)
 
-            container.scroll_end(animate=False)
+                container.scroll_end(animate=False)
 
             # ── QueryGuard lifecycle: transition back to idle + check queue ──
             if self._query_guard.end(generation):
@@ -526,9 +534,14 @@ class CascadeApp(App):
             # even if rendering crashes or worker is cancelled.
             if self._query_guard.is_running:
                 self._query_guard.force_end()
+            self._generation_worker = None
             self._set_prompt_generating(False)
             self.query_one("#prompt-input", PromptInput).focus()
             self._scroll_chat_end()
+            # Refresh queue preview so user sees what's still pending.
+            # Do NOT auto-drain: per Gemini CLI pattern, cancelled state
+            # preserves queue; user must manually submit to trigger next.
+            self._update_queue_preview()
 
     async def _handle_tool_start(self, name: str, args: dict) -> None:
         """Async callback for tool start — await UI updates."""
@@ -681,26 +694,14 @@ class CascadeApp(App):
     def action_cancel_or_focus(self) -> None:
         """ESC handler with layered priority. Mirrors Claude Code's useCancelRequest.
 
-        Priority 1: Cancel active generation (abort)
-        Priority 2: Pop queue into input for editing (idle + queue non-empty)
+        Priority 1: Pop last queued item into input for editing (if queue non-empty)
+        Priority 2: Cancel active generation (if queue is empty)
         Priority 3: Focus input (fallback)
         """
-        # Priority 1: Cancel active generation
-        if self._query_guard.is_running:
-            self._query_guard.force_end()
-            # NOTE: Queue is intentionally NOT cleared here.
-            # Per Claude Code spec, clearCommandQueue() only fires on killAgents
-            # (double-ESC), not on a single ESC cancel.
-            self._update_queue_preview()
-            self.notify("⛔ Generation cancelled", timeout=2.0)
-            asyncio.ensure_future(self._remove_spinner())
-            self._show_prompt()
-            return
-
-        # Priority 2: Pop queue into input for editing (idle + queue non-empty)
+        # Priority 1: Pop queue into input for editing (idle/running + queue non-empty)
         if self._input_queue.has_commands:
             inp = self.query_one("#prompt-input", PromptInput)
-            result = self._input_queue.pop_all_editable(
+            result = self._input_queue.pop_last_editable(
                 inp.text,
                 len(inp.text),
             )
@@ -708,8 +709,22 @@ class CascadeApp(App):
                 inp.text = result.text
                 inp.action_cursor_line_end()
                 self._update_queue_preview()
-                self.notify("📝 Queue popped to input for editing", timeout=2.0)
+                self.notify("📝 Popped last queued item to input", timeout=2.0)
                 return
+
+        # Priority 2: Cancel active generation (queue is empty)
+        if self._query_guard.is_running:
+            self._generation_cancelled = True
+            self._query_guard.force_end()
+            # Cancel the actual Textual worker (triggers CancelledError in _run_generation)
+            if self._generation_worker is not None:
+                self._generation_worker.cancel()
+                self._generation_worker = None
+            self._update_queue_preview()
+            self.notify("⛔ Generation cancelled", timeout=2.0)
+            asyncio.ensure_future(self._remove_spinner())
+            self._show_prompt()
+            return
 
         # Priority 3: Fallback — just focus input
         self.query_one("#prompt-input", PromptInput).focus()

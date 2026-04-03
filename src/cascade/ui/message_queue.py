@@ -158,6 +158,34 @@ class MessageQueueManager:
             cursor_offset=len(new_input),
         )
 
+    def pop_last_editable(
+        self, current_input: str, cursor_offset: int
+    ) -> Optional[PopAllEditableResult]:
+        """Pop the last editable command from queue, merge into input for editing.
+
+        Used for step-by-step Esc cancellation of the queue.
+        """
+        editable = [cmd for cmd in self._queue if self.is_editable(cmd)]
+        if not editable:
+            return None
+
+        last_cmd = editable[-1]
+        self._queue.remove(last_cmd)
+
+        # Merge: popped text first, then current input
+        parts = [last_cmd.value]
+        if current_input.strip():
+            parts.append(current_input)
+        new_input = "\n".join(parts)
+
+        self._log_operation("popLastEditable", f"1 command: {last_cmd.value}")
+        self._notify_subscribers()
+
+        return PopAllEditableResult(
+            text=new_input,
+            cursor_offset=len(new_input),
+        )
+
     @staticmethod
     def is_editable(cmd: QueuedCommand) -> bool:
         """A command is editable if it was user-generated (not meta/system)."""
