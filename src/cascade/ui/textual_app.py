@@ -5,12 +5,20 @@ alternate-screen Textual App that handles:
   - Infinite scrollback via VerticalScroll
   - No resize artifacts (Textual manages alternate buffer)
   - Text selection + copy via CopyableTextArea + pyperclip
+  - Message queue for non-blocking input during generation
 """
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from typing import Optional
+
+from cascade.ui.message_queue import MessageQueueManager, QueuedCommand
+from cascade.ui.query_guard import QueryGuard
+from cascade.ui.queue_processor import process_queue_if_ready
+
+logger = logging.getLogger(__name__)
 
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Vertical
@@ -29,7 +37,7 @@ from cascade.tools.file_tools import FileReadTool, FileWriteTool
 from cascade.tools.search_tools import GrepTool, GlobTool
 from cascade.bootstrap.system_prompt import build_system_prompt
 from cascade.commands import CommandRouter, CommandContext
-from cascade.ui.widgets import CopyableTextArea, SpinnerWidget, CopyableStatic
+from cascade.ui.widgets import CopyableTextArea, SpinnerWidget, CopyableStatic, QueuePreview
 from cascade.ui.command_palette import CommandPalette
 from cascade.ui.styles import CASCADE_TCSS
 from cascade.ui.banner import VERSION, ASCII_ART, _LOGO, _L, _R
@@ -42,11 +50,14 @@ class CascadeApp(App):
     ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
-        Binding("escape", "focus_input", "Focus input", show=False),
+        Binding("escape", "cancel_or_focus", "Cancel / Focus input", show=False),
         Binding("ctrl+c", "quit", "Quit", show=False, priority=True),
         Binding("ctrl+y", "copy_last_reply", "Copy last reply", show=False),
         Binding("ctrl+l", "clear_chat", "Clear chat", show=False),
     ]
+
+    # Commands that execute immediately even during generation (bypass queue)
+    IMMEDIATE_COMMANDS = frozenset({"/model", "/help", "/config", "/clear", "/status"})
 
     def __init__(self, client, **kwargs):
         super().__init__(**kwargs)
@@ -54,8 +65,11 @@ class CascadeApp(App):
         self._message_count = 0
         self._last_reply = ""
         self._spinner: Optional[SpinnerWidget] = None
-        self._generating = False
         self._permission_future: Optional[asyncio.Future] = None
+
+        # ── Message Queue & Query Guard (replaces old _generating bool) ──
+        self._input_queue = MessageQueueManager()
+        self._query_guard = QueryGuard()
 
         # ── Core engine (mirrors old CascadeRepl) ──
         self.store = Store()
@@ -166,6 +180,7 @@ class CascadeApp(App):
             Static("Type 'exit' or 'quit' to close. Ctrl+N for newline. Select text and press 'c' to copy.", id="help-text"),
             
             Vertical(
+                QueuePreview(id="queue-preview"),
                 Horizontal(
                     Static("[bold #5fd7ff]❯[/bold #5fd7ff] ", id="prompt-label"),
                     PromptInput(id="prompt-input"),
@@ -255,7 +270,14 @@ class CascadeApp(App):
 
     @on(PromptInput.Submitted)
     async def on_input_submitted(self, event: PromptInput.Submitted) -> None:
-        """Handle Enter in the input box."""
+        """Handle Enter in the input box.
+
+        Three-tier dispatch (mirrors Claude Code handlePromptSubmit.ts):
+          1. Permission gate (y/n during tool approval)
+          2. Immediate commands bypass queue entirely
+          3. If generating → enqueue
+          4. Normal execution (idle state)
+        """
         user_text = event.value.strip()
         if not user_text:
             return
@@ -272,11 +294,39 @@ class CascadeApp(App):
                 await self.append_rich_message("[red]✗ Denied[/red]")
             return
 
-        if self._generating:
-            self.notify("⏳ Generating, please wait...")
+        input_widget = self.query_one("#prompt-input", PromptInput)
+
+        # ── Step 1: Immediate commands bypass queue entirely ──
+        if user_text.startswith("/"):
+            cmd_name = user_text.split()[0]
+            if cmd_name in self.IMMEDIATE_COMMANDS and self._query_guard.is_active:
+                input_widget.add_to_history(user_text)
+                input_widget.text = ""
+                await self._execute_immediate_command(user_text)
+                return
+
+        # ── Step 2: If generating, enqueue ──
+        if self._query_guard.is_active:
+            cmd = QueuedCommand(
+                value=user_text,
+                mode="slash" if user_text.startswith("/") else "prompt",
+                priority="next",
+            )
+            self._input_queue.enqueue(cmd)
+            input_widget.add_to_history(user_text)
+            input_widget.text = ""
+            self._update_queue_preview()
+            logger.debug("Enqueued: %s", user_text[:80])
             return
 
-        input_widget = self.query_one("#prompt-input", PromptInput)
+        # ── Step 3: Normal execution (idle state) ──
+        # Reserve dispatching state to prevent race conditions
+        # between submission and _run_generation's try_start().
+        if not self._query_guard.reserve():
+            # Shouldn't happen (we checked is_active above), but guard anyway
+            logger.warning("on_input_submitted: reserve() failed unexpectedly")
+            return
+
         input_widget.add_to_history(user_text)
         input_widget.text = ""
 
@@ -286,6 +336,39 @@ class CascadeApp(App):
         except Exception:
             pass
 
+        try:
+            await self._execute_prompt(user_text)
+        finally:
+            # cancel_reservation is a no-op if try_start() already moved to running
+            self._query_guard.cancel_reservation()
+
+    async def _execute_immediate_command(self, user_text: str) -> None:
+        """Execute an immediate command that bypasses the queue.
+
+        These commands run even during generation (e.g. /model, /help, /clear).
+        """
+        # Hide palette
+        try:
+            self.query_one("#cmd-palette", CommandPalette).display = False
+        except Exception:
+            pass
+
+        await self.append_user_message(user_text)
+        cmd_ctx = CommandContext(
+            engine=self.engine,
+            repl=self,
+        )
+        handled = await self.router.dispatch(user_text, cmd_ctx)
+        if not handled:
+            await self.append_system_message(
+                f"Unknown command: {user_text.split()[0]}. Type /help for available commands."
+            )
+
+    async def _execute_prompt(self, user_text: str) -> None:
+        """Execute a single direct submission (slash or prompt).
+
+        Handles the full flow: slash routing → API generation.
+        """
         # ── Slash command routing ──
         if user_text.startswith("/"):
             await self.append_user_message(user_text)
@@ -311,102 +394,141 @@ class CascadeApp(App):
         await self.append_user_message(user_text)
 
         # ── AI generation ──
-        # Run generation in a background worker to avoid blocking the message pump.
-        # This prevents deadlocks when generating waits for user permission input.
-        from textual.worker import Worker
         self.run_worker(self._run_generation(user_text), exclusive=True)
+
+    async def _execute_queued_input(self, commands: list[QueuedCommand]) -> None:
+        """Execute dequeued commands (called by queue processor).
+
+        The processor guarantees:
+          - Slash commands arrive one at a time
+          - Non-slash prompts arrive as a batch (same mode)
+        So we don't need to mix slash/non-slash handling here.
+        """
+        if not commands:
+            return
+
+        # Check if the first command is a slash command (processor sends these individually)
+        if MessageQueueManager.is_slash_command(commands[0]):
+            # _execute_prompt renders the user message internally, no pre-render needed
+            await self._execute_prompt(commands[0].value)
+            return
+
+        # Non-slash batch: render all user messages, then single generation
+        for cmd in commands:
+            await self.append_user_message(cmd.value)
+
+        combined = "\n\n".join(c.value for c in commands)
+        self.run_worker(self._run_generation(combined), exclusive=True)
 
     # ── AI Generation with streaming ─────────────────────────
 
     async def _run_generation(self, user_text: str) -> None:
-        """Submit to QueryEngine with streaming callbacks."""
+        """Submit to QueryEngine with streaming callbacks.
+
+        Uses QueryGuard state machine to prevent race conditions.
+        On completion, checks the queue for pending commands.
+        """
+        generation = self._query_guard.try_start()
+        if generation is None:
+            logger.warning("_run_generation: QueryGuard already running, skipping")
+            return
+
         container = self.query_one("#chat-history", VerticalScroll)
         target = self.query_one("#input-section", Vertical)
         self._message_count += 1
         msg_id = self._message_count
-        self._generating = True
-        self._hide_prompt()
-
-        # AI label
-        ai_label = Static("✦ Cascade", classes="ai-label")
-        await container.mount(ai_label, before=target)
-
-        # Spinner
-        await self._show_spinner("Generating")
-        container.scroll_end(animate=False)
-
-        tokens: list[str] = []
-
-        def on_token(t: str) -> None:
-            tokens.append(t)
-
-        async def on_tool_start(name: str, args: dict) -> None:
-            await self._handle_tool_start(name, args)
-
-        async def on_tool_end(name: str, tool_result) -> None:
-            await self._handle_tool_end(name, tool_result)
-
-        async def ask_user(prompt_msg: str) -> bool:
-            """Show permission prompt and wait for user y/n input."""
-            # Stop spinner so user can see the prompt clearly
-            await self._remove_spinner()
-            
-            loop = asyncio.get_event_loop()
-            self._permission_future = loop.create_future()
-            
-            # Temporarily clear _generating so the prompt is fully interactive
-            self._generating = False
-            
-            await self.append_rich_message(
-                f"[bold yellow]⚠️ Permission Request[/bold yellow]\n"
-                f"[dim]{prompt_msg}[/dim]\n"
-                f"[bold]Enter [green]y[/green] to approve, anything else to deny:[/bold]"
-            )
-            # Show the input so user can type y/n
-            self._show_prompt()
-            try:
-                result = await self._permission_future
-            finally:
-                self._permission_future = None
-                self._generating = True  # Restore for remaining generation
-                # Hide prompt again and restart spinner for next phase
-                self._hide_prompt()
-                await self._show_spinner("Generating")
-            return result
+        # Prompt stays visible during generation (non-blocking input for queue)
+        self._set_prompt_generating(True)
 
         try:
-            result = await self.engine.submit(
-                user_text,
-                on_token=on_token,
-                on_tool_start=on_tool_start,
-                on_tool_end=on_tool_end,
-                ask_user=ask_user,
-            )
-        except Exception as e:
+            # AI label
+            ai_label = Static("✦ Cascade", classes="ai-label")
+            await container.mount(ai_label, before=target)
+
+            # Spinner
+            await self._show_spinner("Generating")
+            container.scroll_end(animate=False)
+
+            tokens: list[str] = []
+
+            def on_token(t: str) -> None:
+                tokens.append(t)
+
+            async def on_tool_start(name: str, args: dict) -> None:
+                await self._handle_tool_start(name, args)
+
+            async def on_tool_end(name: str, tool_result) -> None:
+                await self._handle_tool_end(name, tool_result)
+
+            async def ask_user(prompt_msg: str) -> bool:
+                """Show permission prompt and wait for user y/n input."""
+                await self._remove_spinner()
+
+                loop = asyncio.get_event_loop()
+                self._permission_future = loop.create_future()
+
+                await self.append_rich_message(
+                    f"[bold yellow]⚠️ Permission Request[/bold yellow]\n"
+                    f"[dim]{prompt_msg}[/dim]\n"
+                    f"[bold]Enter [green]y[/green] to approve, anything else to deny:[/bold]"
+                )
+                # Prompt is already visible; just ensure focus for y/n input
+                self._set_prompt_generating(False)  # Show ❯ for permission input
+                self.query_one("#prompt-input", PromptInput).focus()
+                try:
+                    result = await self._permission_future
+                finally:
+                    self._permission_future = None
+                    # Restore generating indicator and resume spinner
+                    self._set_prompt_generating(True)
+                    await self._show_spinner("Generating")
+                return result
+
+            try:
+                result = await self.engine.submit(
+                    user_text,
+                    on_token=on_token,
+                    on_tool_start=on_tool_start,
+                    on_tool_end=on_tool_end,
+                    ask_user=ask_user,
+                )
+            except Exception as e:
+                await self._remove_spinner()
+                await self.append_system_message(f"Error: {e}")
+                return
+
+            # ── Render response BEFORE transitioning guard state ──
             await self._remove_spinner()
-            await self.append_system_message(f"Error: {e}")
-            self._generating = False
-            self._show_prompt()
-            return
 
-        # Remove spinner
-        await self._remove_spinner()
+            final_text = "".join(tokens) if tokens else (result.output or "")
+            self._last_reply = final_text
 
-        # Render final AI response
-        final_text = "".join(tokens) if tokens else (result.output or "")
-        self._last_reply = final_text
+            if final_text.strip():
+                ai_area = CopyableTextArea(
+                    final_text,
+                    id=f"ai-msg-{msg_id}",
+                    classes="message-area ai-msg",
+                )
+                await container.mount(ai_area, before=target)
 
-        if final_text.strip():
-            ai_area = CopyableTextArea(
-                final_text,
-                id=f"ai-msg-{msg_id}",
-                classes="message-area ai-msg",
-            )
-            await container.mount(ai_area, before=target)
+            container.scroll_end(animate=False)
 
-        container.scroll_end(animate=False)
-        self._generating = False
-        self._show_prompt()
+            # ── QueryGuard lifecycle: transition back to idle + check queue ──
+            if self._query_guard.end(generation):
+                self._update_queue_preview()
+                process_queue_if_ready(
+                    self._input_queue,
+                    self._execute_queued_input,
+                )
+
+        finally:
+            # Safety net: ALWAYS restore prompt label and release guard,
+            # even if rendering crashes or worker is cancelled.
+            if self._query_guard.is_running:
+                self._query_guard.force_end()
+            self._set_prompt_generating(False)
+            self.query_one("#prompt-input", PromptInput).focus()
+            self._scroll_chat_end()
 
     async def _handle_tool_start(self, name: str, args: dict) -> None:
         """Async callback for tool start — await UI updates."""
@@ -506,23 +628,47 @@ class CascadeApp(App):
         status = self.query_one("#status-bar", Static)
         status.update(self._build_status_markup())
 
+    # ── Queue preview helper ────────────────────────────────
 
+    def _update_queue_preview(self) -> None:
+        """Update the persistent queue preview widget."""
+        try:
+            preview = self.query_one("#queue-preview", QueuePreview)
+            preview.force_refresh()
+        except Exception:
+            # Fallback: use notify if widget not found
+            if self._input_queue.has_commands:
+                count = self._input_queue.length
+                self.notify(f"📥 {count} queued message{'s' if count > 1 else ''}", timeout=2.0)
 
     # ── Actions ───────────────────────────────────────────────
 
-    def _hide_prompt(self) -> None:
-        """Hide the ❯ prompt and input during generation."""
-        self.query_one("#prompt-container", Horizontal).display = False
+    def _set_prompt_generating(self, generating: bool) -> None:
+        """Toggle prompt visual indicator between idle (❯) and generating (⏳).
+
+        The prompt container is ALWAYS visible — users can type during
+        generation and their input will be queued automatically.
+        """
+        try:
+            label = self.query_one("#prompt-label", Static)
+            if generating:
+                label.update("[bold #ffd700]⏳[/bold #ffd700] ")
+            else:
+                label.update("[bold #5fd7ff]❯[/bold #5fd7ff] ")
+        except Exception:
+            pass
 
     def _show_prompt(self) -> None:
-        """Show the ❯ prompt and input, then focus."""
+        """Ensure prompt is visible, focused, and scrolled to bottom.
+
+        Used after ESC cancel and other state transitions where
+        we need to guarantee prompt accessibility.
+        """
         container = self.query_one("#prompt-container", Horizontal)
         container.display = True
         inp = self.query_one("#prompt-input", PromptInput)
-        
-        # Enable typing just in case
         inp.disabled = False
-        
+
         def _do_focus():
             inp.focus()
             self._scroll_chat_end()
@@ -532,8 +678,40 @@ class CascadeApp(App):
         """Scroll chat history to bottom (called after layout refresh)."""
         self.query_one("#chat-history", VerticalScroll).scroll_end(animate=False)
 
-    def action_focus_input(self) -> None:
-        """Escape: Focus the input box and scroll to it."""
+    def action_cancel_or_focus(self) -> None:
+        """ESC handler with layered priority. Mirrors Claude Code's useCancelRequest.
+
+        Priority 1: Cancel active generation (abort)
+        Priority 2: Pop queue into input for editing (idle + queue non-empty)
+        Priority 3: Focus input (fallback)
+        """
+        # Priority 1: Cancel active generation
+        if self._query_guard.is_running:
+            self._query_guard.force_end()
+            # NOTE: Queue is intentionally NOT cleared here.
+            # Per Claude Code spec, clearCommandQueue() only fires on killAgents
+            # (double-ESC), not on a single ESC cancel.
+            self._update_queue_preview()
+            self.notify("⛔ Generation cancelled", timeout=2.0)
+            asyncio.ensure_future(self._remove_spinner())
+            self._show_prompt()
+            return
+
+        # Priority 2: Pop queue into input for editing (idle + queue non-empty)
+        if self._input_queue.has_commands:
+            inp = self.query_one("#prompt-input", PromptInput)
+            result = self._input_queue.pop_all_editable(
+                inp.text,
+                len(inp.text),
+            )
+            if result:
+                inp.text = result.text
+                inp.action_cursor_line_end()
+                self._update_queue_preview()
+                self.notify("📝 Queue popped to input for editing", timeout=2.0)
+                return
+
+        # Priority 3: Fallback — just focus input
         self.query_one("#prompt-input", PromptInput).focus()
         self.call_after_refresh(self._scroll_chat_end)
 

@@ -225,6 +225,23 @@ class PromptInput(TextArea):
         if event.key == "up":
             cursor_row, _ = self.cursor_location
             if cursor_row == 0:
+                # Priority: pop editable commands from queue before history
+                try:
+                    queue = self.app._input_queue
+                    if queue.has_commands:
+                        result = queue.pop_all_editable(self.text, len(self.text))
+                        if result:
+                            event.stop()
+                            event.prevent_default()
+                            self.text = result.text
+                            self.action_cursor_line_end()
+                            # Update preview widget
+                            if hasattr(self.app, '_update_queue_preview'):
+                                self.app._update_queue_preview()
+                            return
+                except AttributeError:
+                    pass
+
                 # Stash current draft on first entry into history mode
                 if not self._history.is_browsing:
                     self._history.stash(self.text)
