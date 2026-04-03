@@ -267,6 +267,7 @@ class CascadeApp(App):
             return
 
         input_widget = self.query_one("#prompt-input", PromptInput)
+        input_widget.add_to_history(user_text)
         input_widget.text = ""
 
         # Hide palette on submit
@@ -527,10 +528,11 @@ class CascadeApp(App):
         self.call_after_refresh(self._scroll_chat_end)
 
     def action_clear_chat(self) -> None:
-        """Ctrl+L: Clear chat history, keep input section."""
+        """Ctrl+L: Clear chat history, keep banner and input section."""
         container = self.query_one("#chat-history", VerticalScroll)
+        preserved_ids = {"input-section", "banner", "status-bar", "help-text"}
         for child in list(container.children):
-            if child.id != "input-section":
+            if child.id not in preserved_ids:
                 child.remove()
 
     def action_copy_last_reply(self) -> None:

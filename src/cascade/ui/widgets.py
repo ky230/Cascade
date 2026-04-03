@@ -153,6 +153,7 @@ class PromptInput(TextArea):
 
     Enter  → submit (fires Submitted message)
     Ctrl+N → insert newline
+    ⬆️/⬇️   → recall input history (when no palette is visible)
 
     We must override ``_on_key`` because TextArea hard-codes
     ``{"enter": "\\n"}`` inside its own ``_on_key``, which runs
@@ -166,14 +167,25 @@ class PromptInput(TextArea):
             self.value = value
             super().__init__()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from cascade.ui.input_history import InputHistory
+        self._history = InputHistory()
+
     def on_mount(self) -> None:
         self.show_line_numbers = False
 
+    def add_to_history(self, text: str) -> None:
+        """Record a submitted prompt to the history buffer + disk."""
+        self._history.add(text)
+
     async def _on_key(self, event) -> None:
-        """Intercept Enter and Ctrl+N before TextArea's default handler.
+        """Intercept Enter, Ctrl+N, ⬆️/⬇️ before TextArea's default handler.
 
         PromptInput is the SINGLE AUTHORITY for Enter handling.
         Palette navigation keys (up/down/tab/escape) bubble to App.on_key.
+        ⬆️/⬇️ navigate input history when no palette is visible and cursor
+        is on the first/last line respectively.
         """
         # Check command palette visibility
         palette_visible = False
@@ -194,18 +206,60 @@ class PromptInput(TextArea):
         except Exception:
             pass
 
-        # Command palette visible: let UP/DOWN/TAB/ESCAPE bubble to App.on_key
-        if palette_visible and event.key in ("up", "down", "tab", "escape"):
+        # Command palette visible: let TAB/ESCAPE always bubble
+        if palette_visible and event.key in ("tab", "escape"):
+            return
+
+        # UP/DOWN bubble to palette ONLY if we are NOT currently browsing history
+        if palette_visible and event.key in ("up", "down") and not self._history.is_browsing:
             return
 
         # Model palette visible: let UP/DOWN/ESCAPE bubble to App.on_key
-        if model_palette_visible and event.key in ("up", "down", "escape"):
+        # (Model palette is triggered by /model, so same logic applies)
+        if model_palette_visible and event.key == "escape":
             return
+        if model_palette_visible and event.key in ("up", "down") and not self._history.is_browsing:
+            return
+
+        # ── History navigation (no palette visible) ──
+        if event.key == "up":
+            cursor_row, _ = self.cursor_location
+            if cursor_row == 0:
+                # Stash current draft on first entry into history mode
+                if not self._history.is_browsing:
+                    self._history.stash(self.text)
+                result = self._history.navigate_up()
+                if result is not None:
+                    event.stop()
+                    event.prevent_default()
+                    self.text = result
+                    self.move_cursor((0, 0))
+                    return
+
+        if event.key == "down":
+            if self._history.is_browsing:
+                cursor_row, _ = self.cursor_location
+                last_row = self.document.line_count - 1
+                if cursor_row >= last_row:
+                    result = self._history.navigate_down()
+                    if result is not None:
+                        event.stop()
+                        event.prevent_default()
+                        if result == "":
+                            # Restore stashed draft
+                            self.text = self._history.stashed_input
+                        else:
+                            self.text = result
+                        self.move_cursor(self.document.end)
+                        return
 
         if event.key == "enter":
             # Enter is ALWAYS handled here — never let it bubble
             event.stop()
             event.prevent_default()
+
+            # Reset history navigation on submit
+            self._history.reset_navigation()
 
             # Case 0: Model palette visible → select model directly
             if model_palette_visible:
