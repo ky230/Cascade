@@ -386,6 +386,78 @@ a32e02b  feat(ui): add terminal-style input history with JSONL persistence
 ```
 
 
+
+## Phase 8.5.4: Non-Blocking Message Queue (Input During Generation) ✅
+- **Completed:** 2026-04-03
+- **Branch:** `feat/phase8-slash-commands`
+
+### Changes
+
+#### Message Queue System (`src/cascade/ui/message_queue.py`) [NEW]
+- `QueuedCommand` dataclass with 3-tier priority (`now`/`next`/`later`), UUID, mode, timestamps
+- `MessageQueueManager` — priority-sorted FIFO queue with subscription model
+  - `enqueue()` / `dequeue()` / `peek()` / `dequeue_all_matching()`
+  - `pop_all_editable()` — merges queued commands back into input for editing (ESC Priority 2)
+  - Subscriber notification on every mutation (drives `QueuePreview` reactive updates)
+  - Static helper `is_slash_command()` for processor routing
+
+#### Query Guard State Machine (`src/cascade/ui/query_guard.py`) [NEW]
+- Three-state lifecycle: `idle` → `dispatching` → `running` → `idle`
+- `reserve()` / `cancel_reservation()` — closes the async gap between dequeue and execution
+- `try_start()` / `end(generation)` — generation-numbered ownership prevents stale cleanup
+- `force_end()` — ESC cancel path, increments generation to invalidate in-flight `end()` calls
+
+#### Queue Processor (`src/cascade/ui/queue_processor.py`) [NEW]
+- `process_queue_if_ready()` — dequeue strategy mirroring Claude Code's `queueProcessor.ts`
+  - Slash commands: process individually (not batched)
+  - Non-slash prompts: batch drain all same-mode commands → single API call
+
+#### Textual App Integration (`src/cascade/ui/textual_app.py`)
+- **Three-tier submission dispatch** in `on_input_submitted()`:
+  1. Immediate commands (`/model`, `/help`, `/config`, `/clear`, `/status`) bypass queue during generation
+  2. If generating → `QueuedCommand` enqueued with `priority="next"`
+  3. Normal idle path → `reserve()` → `_execute_prompt()` → `cancel_reservation()`
+- **Prompt always visible during generation** — `_hide_prompt()` removed entirely
+  - New `_set_prompt_generating(bool)` toggles label `❯` ↔ `⏳` as visual feedback
+  - Users can type and submit while AI generates — input auto-enqueues
+- **ESC layered cancellation** (`action_cancel_or_focus`):
+  - Priority 1: Cancel active generation (`force_end()` + remove spinner)
+  - Priority 2: Pop queue into input for editing (`pop_all_editable()`)
+  - Priority 3: Focus input (fallback)
+- **Generation lifecycle** wrapped in `try/finally`:
+  - `finally` unconditionally restores `_set_prompt_generating(False)` + focus
+  - Guard `force_end()` only fires if still stuck in `running` (crash/cancel safety net)
+
+#### Widgets Sub-Package Migration (`src/cascade/ui/widgets/`) [RESTRUCTURED]
+- `widgets.py` → `widgets/_core.py` (resolves package-shadows-module collision)
+- `widgets/__init__.py` — full re-export of `PromptInput`, `CopyableTextArea`, `CopyableStatic`, `SpinnerWidget`, `QueuePreview`
+- `QueuePreview` widget [NEW]: persistent dim-text preview of queued commands above input
+
+### Design (aligned with Claude Code)
+| Feature | Claude Code | **Cascade** |
+|---------|-------------|-------------|
+| Queue structure | `QueuedCommand` typed struct | `QueuedCommand` dataclass ✅ |
+| Priority tiers | `now`/`next`/`later` | `now`/`next`/`later` ✅ |
+| State machine | `QueryGuard.ts` (3-state) | `QueryGuard` (3-state) ✅ |
+| Batch strategy | Slash individual, prompt batch | Same ✅ |
+| Immediate cmds | 11 commands bypass queue | 5 commands bypass queue ✅ |
+| ESC cancel | 3-layer priority | 3-layer priority ✅ |
+| Queue preview | `PromptInputQueuedCommands` | `QueuePreview` widget ✅ |
+| Prompt visibility | Always visible | Always visible ✅ |
+
+### Review History
+- **Round 1**: 3 🔴 (ESC clear, reserve gap, finally timing) + 2 🟡 → all fixed
+- **Round 2**: 2 🟡 (guard deadlock, double render) → all fixed
+- **Round 3**: 3 🔴 (widget shadowing, `_message_queue` collision, prompt restore) → all fixed
+- **Round 4**: 1 🔴 (`_hide_prompt` contradicts queue design) → fixed, T1-T4 manual tests PASS
+
+### Commits
+```
+7a4bce2  feat(ui): add non-blocking message queue system
+b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
+```
+
+
 ### Next Steps
 → See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
 
