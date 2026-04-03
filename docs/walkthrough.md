@@ -156,6 +156,8 @@ cbf3e34  feat(api): add async stream extraction to ModelClient
 - **Completed:** 2026-04-01
 - **Branch:** `refactor/repl-architecture`
 
+> **Note:** `renderer.py`, `app.py` (CascadeRepl), and `chat.py` were superseded and deleted in Phase 8.5. The Textual-based `CascadeApp` is now the sole UI entry point.
+
 ### Changes
 - **MessageRenderer:** Created `src/cascade/ui/renderer.py`
   - Leverages `rich` to render Markdown `Panel` blocks for tool uses and tool results.
@@ -212,3 +214,136 @@ a13bdab  fix(api): fix litellm provider config for zhipu
 5cae9a7  feat(permission): implement interactive ask_user callback
 02ee741  fix(ui): prevent spinner task leaks and rendering overlaps
 ```
+
+---
+
+## Phase 8.5: Textual TUI Migration & Slash Commands ✅
+- **Completed:** 2026-04-03
+- **Branch:** `feat/phase8-slash-commands` (merged from `feat/phase8.5-textual-migration`)
+
+### Changes
+
+#### Textual UI Migration
+- **`src/cascade/ui/textual_app.py`** — Main `CascadeApp` (Textual `App` subclass)
+  - Replaced the legacy `Rich + prompt_toolkit` CascadeRepl with a full Textual alternate-screen TUI
+  - Infinite scrollback via `VerticalScroll` container (eliminates old scroll-loss bug)
+  - Streaming tokens rendered live into `CopyableTextArea` widgets
+  - Non-blocking tool execution via `run_worker` (prevents Textual message pump deadlocks)
+  - Permission prompts (`ask_user y/N`) run in background workers to avoid UI freeze
+  - `Enter` key routing: single-authority handler in `PromptInput._on_key` dispatches to model palette, command palette, or chat submit (no duplicate handlers)
+- **`src/cascade/ui/widgets.py`** — 4 custom widgets:
+  - `PromptInput` — Multi-line input with `Enter` to submit, `Shift+Enter` for newline
+  - `CopyableTextArea` — Read-only TextArea for assistant/tool output, `c` key copies to clipboard via pyperclip
+  - `CopyableStatic` — Compact Rich-markup container for user messages, `c` key copies plain text
+  - `SpinnerWidget` — Animated spinner (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) for streaming indicator
+- **`src/cascade/ui/styles.py`** — `CASCADE_TCSS` stylesheet (Textual CSS)
+  - Dark theme with `#0c0c0c` background, `#5fd7ff` accent, `#1a1a2e` input area
+  - Scrollbar styling, toast positioning, border colors
+- **`src/cascade/ui/banner.py`** — ASCII art banner + VERSION constant
+
+#### Slash Command System
+- **`src/cascade/commands/base.py`** — `BaseCommand` abstract class + `CommandContext`
+  - `CommandContext` has `engine` (QueryEngine) + `repl` (CascadeApp) fields only (Textual-native, no legacy `console`/`session`)
+  - Output via `ctx.output(text)` and `ctx.output_rich(markup)` which route to CascadeApp's message rendering
+- **`src/cascade/commands/router.py`** — `CommandRouter` with register/dispatch/category grouping
+  - No prompt_toolkit dependencies (legacy `SlashCompleter` and `get_completer()` removed)
+- **`src/cascade/ui/command_palette.py`** — `CommandPalette` inline dropdown
+  - Keyboard navigable (↑↓ to move, Tab/Enter to select, Esc to dismiss)
+  - Filters commands as user types after `/`
+- **`src/cascade/ui/model_palette.py`** — `ModelPalette` inline dropdown
+  - 3-column layout (Provider, Model, Price) with `ljust()` plain-text alignment
+  - 40+ models across 9 providers (DeepSeek, GLM, Anthropic, Gemini, OpenAI, xAI, MiniMax, Kimi, Qwen)
+  - `✅` emoji toast notification on model switch
+
+#### 4 Core Commands Implemented
+| Command | File | Description |
+|---------|------|-------------|
+| `/help` (`/?`) | `commands/core/help.py` | Rich-formatted grouped command table via `output_rich()` |
+| `/exit` (`/quit`) | `commands/core/exit.py` | Clean `SystemExit(0)` |
+| `/clear` | `commands/core/clear.py` | Clear conversation history, keep system prompt |
+| `/model` | `commands/model/model.py` | Opens inline `ModelPalette` + direct switch via `/model <provider> <model>` |
+
+#### User Message Formatting
+- Blue `❯` prefix (`[#5fd7ff]❯[/]`) on first line only (multi-line prompts show `❯` once)
+- `User` border title with `CopyableStatic` container
+- Compact border-only layout (no bloat)
+
+#### Legacy Cleanup (commit `00cab15`)
+- **Deleted files:**
+  - `src/cascade/ui/app.py` — Old `CascadeRepl` (Rich + prompt_toolkit REPL)
+  - `src/cascade/ui/spinner.py` — Old async spinner (replaced by `SpinnerWidget`)
+  - `src/cascade/ui/renderer.py` — Old Rich panel renderer (rendering now inline in `textual_app.py`)
+  - `src/cascade/ui/model_picker.py` — Old `ModelPickerScreen` modal (replaced by `ModelPalette`)
+  - `src/cascade/cli/commands/chat.py` — Old CLI command that launched `CascadeRepl` (dead code)
+- **Removed code:**
+  - `SlashCompleter` class + `prompt_toolkit.completion` imports from `router.py`
+  - `console` and `session` fields from `CommandContext` dataclass
+  - `ModelPickerScreen` CSS block (30 lines) from `styles.py`
+  - Duplicate `Enter` key handler from `CascadeApp.on_key`
+  - Stale `from rich.text import Text` import from `textual_app.py`
+  - `open_model_picker()` method from `CascadeApp`
+- **Net result:** 11 files changed, +256 / -593 lines (net -337)
+
+### File Manifest (post-cleanup)
+```
+src/cascade/commands/
+├── __init__.py
+├── base.py              # BaseCommand, CommandContext
+├── router.py            # CommandRouter (dispatch + category)
+├── core/
+│   ├── __init__.py
+│   ├── help.py          # /help
+│   ├── exit.py          # /exit (/quit)
+│   └── clear.py         # /clear
+└── model/
+    ├── __init__.py
+    └── model.py         # /model + PROVIDER_CATALOG
+
+src/cascade/ui/
+├── __init__.py
+├── banner.py            # ASCII art + VERSION
+├── command_palette.py   # CommandPalette (slash dropdown)
+├── model_palette.py     # ModelPalette (model dropdown)
+├── styles.py            # CASCADE_TCSS
+├── textual_app.py       # CascadeApp (main TUI, 580 lines)
+└── widgets.py           # PromptInput, CopyableTextArea, CopyableStatic, SpinnerWidget
+```
+
+### Key Architectural Decisions
+- **Alignment via plain text:** `ModelPalette` uses `ljust()` on plain-text strings *before* applying Rich markup to ensure columns stay aligned regardless of markup length
+- **Event routing:** Navigation keys (↑↓/Esc) bubble from `PromptInput` → `App.on_key` for both palettes; `Enter` is intercepted at `PromptInput` level to prevent bubbling
+- **Worker pattern:** All blocking operations (API streaming, permission prompts) use `self.run_worker()` to avoid blocking Textual's async message pump
+
+### Known Issues
+- Some Gemini models have long pricing strings that may wrap in narrow terminals
+- `CopyableStatic` focus management in rapid scroll scenarios needs monitoring
+- Test coverage for new TUI components is minimal (manual testing only)
+
+### Commits
+```
+b9ea831  docs: archive phase8 as completed, create phase9 plan for remaining 33 commands
+00cab15  feat(ui): inline model palette + cleanup legacy REPL code
+319c455  docs: archive phase 8.5 fix plans + update slash command roadmap
+cb316e2  fix(ui): resolve permission prompt freeze + enter key submission
+a48763f  feat(ui): tab complete for slash menu and copyable markdown system messages
+0a3f965  style(ui): compact toasts and invert slash command dropdown
+32376f4  style(ui): popup polish, toast styling, and slash menu light bar
+c9b2cb4  style(ui): elevate input prompt with bottom padding
+e418140  fix(ui): prevent TextArea scrollbars from breaking borders
+515b8d7  refactor(ui): move banner and status into scrollable history
+154c389  fix(ui): prevent input section from collapsing on long scroll
+15f78c9  fix(ui): move input section outside VerticalScroll — always visible
+aee515b  fix(ui): add explicit scrollbar colors for dark theme visibility
+c6c33b4  fix(ui): correct message ordering, restore scrollbar, fix model output
+dd2d1d5  docs: add Task 9 — Command Parity plan (command palette, interactive model picker, Rich help)
+5d1e3e0  feat(ui): Task 7+8 — slash autocomplete, Ctrl+Y/L bindings, footer update, deprecate old files
+32f25e2  refactor(commands): adapt all slash commands for Textual TUI output via ctx.output()
+a2410fb  feat(cli): switch entry point from CascadeRepl to CascadeApp (Textual)
+2102e57  feat(ui): create CascadeApp Textual TUI with streaming and tool rendering
+ed10e18  feat(ui): add TCSS stylesheet for Cascade dark theme
+69f4fb6  feat(ui): add CopyableTextArea and SpinnerWidget for Textual TUI
+a5a5e0c  chore: add textual and pyperclip dependencies for TUI migration
+```
+
+### Next Steps
+→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
