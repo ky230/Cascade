@@ -458,6 +458,17 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 ```
 
 
+## Open Questions (v0.3.0)
+
+> 以下问题在当前版本周期中被识别但尚未解决，记录于此以防遗忘。
+
+| # | 问题 | 来源 | 状态 |
+|---|------|------|------|
+| OQ-1 | `Cascade*.md` 开发准则不入仓库，未来由 `CASCADE.md`（类似 `GEMINI.md` / `CLAUDE.md`）全局规则文件取代，用户自定义 | `docs-reorg-discussion` 🟡 Y1 | 📌 设计方向已定，待 v0.3.0 CLI 框架支持 |
+| OQ-3 | `cas-roundtable` skill 的独立价值——多 Agent 结构化交互方式，未来可能影响框架级 multi-agent 设计 | 圆桌会议实践总结 | 💡 观察中，积累更多实际使用经验后评估 |
+
+---
+
 ### Next Steps
 → See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
 
