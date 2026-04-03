@@ -345,10 +345,7 @@ ed10e18  feat(ui): add TCSS stylesheet for Cascade dark theme
 a5a5e0c  chore: add textual and pyperclip dependencies for TUI migration
 ```
 
-### Next Steps
-→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
 
----
 
 ## Phase 8.5.3: Input History (⬆️⬇️ Arrow Key Recall + JSONL Persistence) ✅
 - **Completed:** 2026-04-03
@@ -387,3 +384,9 @@ a5a5e0c  chore: add textual and pyperclip dependencies for TUI migration
 ```
 a32e02b  feat(ui): add terminal-style input history with JSONL persistence
 ```
+
+
+### Next Steps
+→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
+
+---

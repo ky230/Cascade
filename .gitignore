@@ -1,3 +1,6 @@
+# Antigravity workspace rules
+.agents/
+
 # Environment Variables
 .env
 .env.local
