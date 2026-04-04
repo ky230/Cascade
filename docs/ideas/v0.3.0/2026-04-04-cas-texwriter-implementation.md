@@ -512,9 +512,11 @@ autoSectionLabels: true
 
 Build instructions for local Mac and lxplus. Covers:
 - `brew install pandoc pandoc-crossref` (Mac)
-- `wget` binary download (lxplus)
+- `wget` binary download to `~/.local/bin` (lxplus) — **Note: cannot be installed via pip into .venv**
 - CVMFS TeXLive path
 - `make pdf` / `make draft` / `make wordcount`
+- **[Y4] Environment Isolation (lxplus):** Document the 3 potential strategies (A/B/C) with strong recommendation for Option C.
+  - Option C: Cascade CLI in `.venv`, independent `pandoc` in `~/.local/bin`, TeXLive from CVMFS. When interacting with CMSSW/ROOT, Cascade isolates it by calling `cmsenv` inside subprocesses.
 
 ### Step 7: Verify Makefile syntax
 
