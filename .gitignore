@@ -3,7 +3,7 @@
 
 # Paper source files (private — only compiled PDF is public)
 docs/paper/
-!docs/cascade-whitepaper.pdf
+!docs/paper/cascade-ANnote.pdf
 
 # Environment Variables
 .env
