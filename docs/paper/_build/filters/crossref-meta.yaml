@@ -1,0 +1,13 @@
+# pandoc-crossref configuration for JHEP-style cross-referencing
+figureTitle: "Figure"
+tableTitle: "Table"
+listingTitle: "Listing"
+figPrefix: "Fig."
+tblPrefix: "Tab."
+lstPrefix: "Listing"
+secPrefix: "Sec."
+eqnPrefix: "Eq."
+chaptersDepth: 0          # No chapter numbering (JHEP uses flat section numbers)
+numberSections: true
+sectionsDepth: 3          # Number down to ### level
+autoSectionLabels: true   # Auto-generate labels from headings

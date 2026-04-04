@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════
+# Cascade Technical Whitepaper — Metadata
+# ═══════════════════════════════════════════
+
+# --- Document Info ---
+title: "Cascade: An HPC-Native Multi-Agent Framework for High Energy Physics Analysis Workflows"
+subtitle: "A Technical Whitepaper"
+author:
+  - name: "Author Name"
+    affiliation: "Institute"
+    email: "email@example.com"
+date: 2026
+abstract: |
+  <!-- TODO: 写完正文后最后填写 -->
+
+# --- Scaffold State ---
+scaffold_created: true         # Set by /cas-texwriter init on 2026-04-04
+
+# --- Four Pillars ---
+pillars:
+  - id: "HPC-Native"
+    label: "HPC-Native Architecture"
+    description: "CERN lxplus / HTCondor native support"
+  - id: "Combine-ROOT"
+    label: "Native Combine/ROOT Support"
+    description: "CMS Combine + deep ROOT macro integration"
+  - id: "Universal-API"
+    label: "Universal ModelClient API"
+    description: "Multi-model unified API abstraction layer"
+  - id: "Inversion"
+    label: "Inversion Anti-Hallucination"
+    description: "Inversion-based anti-hallucination mechanism"
+
+# --- Chapter Structure ---
+chapters:
+  - file: "01-introduction.md"
+    title: "Introduction"
+  - file: "02-related-work.md"
+    title: "Related Work and Distinctive Positioning"
+  - file: "03-architecture.md"
+    title: "System Architecture and Infrastructure"
+    pillars: ["HPC-Native", "Universal-API"]
+  - file: "04-agent-tools.md"
+    title: "Agent Coordination and Tool Constraining"
+    pillars: ["Combine-ROOT", "Inversion"]
+  - file: "05-proof-of-concept.md"
+    title: "Proof-of-Concept: A CMS Analysis Workflow"
+  - file: "06-evolution.md"
+    title: "Evolution Roadmap and Developer Changelog"
+  - file: "07-conclusion.md"
+    title: "Conclusion"
+
+# --- Structure Protection (Heading Registry) ---
+structure_protection:
+  "03-architecture.md":
+    required_headings:
+      - "## 3. System Architecture and Infrastructure"
+      - "### 3.1 The 8-Layer Abstraction Architecture"
+      - "### 3.2 Pipeline Orchestration on HPC Clusters"
+      - "### 3.3 Universal ModelClient Layer"
+    allow_new_subsections: true
+  "04-agent-tools.md":
+    required_headings:
+      - "## 4. Agent Coordination and Tool Constraining"
+      - "### 4.1 Schema-Validated Tool Wrappers for HEP"
+      - "### 4.2 Multi-Agent Review and Quality Assurance"
+      - "### 4.3 The \"Inversion\" Mechanism"
+    allow_new_subsections: true
+
+# --- Markdown Subset Spec ---
+markdown_spec:
+  allowed:
+    - headings          # ## through ####
+    - emphasis          # **bold**, *italic*
+    - code_spans        # `inline code`
+    - fenced_code       # ```language ... ```
+    - pipe_tables       # | col | col |
+    - footnotes         # [^id]
+    - math_inline       # $...$
+    - math_display      # $$...$$
+    - crossref          # [@sec:xxx], [@fig:xxx]
+    - citations         # [@bibkey]
+    - images            # ![caption](_build/figures/path)
+    - html_comments     # <!-- ... --> (for PILLAR anchors, ref tags)
+  forbidden:
+    - mermaid
+    - raw_html          # no <div>, <span>, etc.
+    - html_tags
+    - internal_links    # no [text](file.md) — use [@sec:xxx]
+  constraints:
+    footnote_max_length: 80   # characters per footnote text
