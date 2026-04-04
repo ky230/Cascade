@@ -465,6 +465,7 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 | # | 问题 | 来源 | 状态 |
 |---|------|------|------|
 | OQ-1 | `Cascade*.md` 开发准则不入仓库，未来由 `CASCADE.md`（类似 `GEMINI.md` / `CLAUDE.md`）全局规则文件取代，用户自定义 | `docs-reorg-discussion` 🟡 Y1 | 📌 设计方向已定，待 v0.3.0 CLI 框架支持 |
+| OQ-2 | `cas-texwriter` 学术论文同步能力的归属——当前以 Antigravity skill 形式实现（8 步 Digest-First Patch 工作流），后续需评估是否独立为系统级架构模块（如 `docs/paper/` 管线自动化）还是保留为可插拔 skill | `cas-texwriter-discussion` 圆桌 R1-R2 | 💡 当前 skill 形式满足需求，累积 2-3 次实际论文同步后再评估架构提升必要性 |
 | OQ-3 | `cas-roundtable` skill 的独立价值——多 Agent 结构化交互方式，未来可能影响框架级 multi-agent 设计 | 圆桌会议实践总结 | 💡 观察中，积累更多实际使用经验后评估 |
 
 ---
