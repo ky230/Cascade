@@ -72,12 +72,22 @@ PROVIDER_CATALOG = {
             {"id": "MiniMax-M2.5-highspeed", "label": "MiniMax M2.5 HS", "price": "$0.60/M in, $2.40/M out"},
         ],
     },
+    "xiaomi": {
+        "display": "Xiaomi MiMo",
+        "env_key": "XIAOMI_API_KEY",
+        "models": [
+            {"id": "mimo-v2-pro", "label": "MiMo-V2-Pro", "price": "¥7.00/M in, ¥21.00/M out (≤256K); ¥14/¥42 (>256K)"},
+            {"id": "mimo-v2-omni", "label": "MiMo-V2-Omni", "price": "¥2.80/M in, ¥14.00/M out"},
+            {"id": "mimo-v2-flash", "label": "MiMo-V2-Flash", "price": "¥0.70/M in, ¥2.10/M out"},
+        ],
+    },
     "qwen": {
         "display": "Alibaba Qwen",
         "env_key": "DASHSCOPE_API_KEY",
         "models": [
+            {"id": "qwen3.6-plus", "label": "Qwen 3.6 Plus", "price": "¥2.00/M in, ¥12.00/M out (≤256K); ¥8/¥48 (>256K)"},
             {"id": "qwen3.5-flash", "label": "Qwen 3.5 Flash", "price": "¥0.20/M in, ¥0.80/M out"},
-            {"id": "qwen3.5-plus", "label": "Qwen 3.5 Plus", "price": "¥0.80/M in, ¥2.00/M out"},
+            {"id": "qwen3.5-plus", "label": "Qwen 3.5 Plus", "price": "¥0.80/M in, ¥4.80/M out (≤128K); ¥2/¥12 (>128K)"},
             {"id": "qwen3-coder-plus", "label": "Qwen3 Coder Plus", "price": "~¥0.80/M in, ~¥2.00/M out"},
         ],
     },
