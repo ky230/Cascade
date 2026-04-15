@@ -115,6 +115,17 @@ class CascadeApp(App):
         self.router.register(RewindCommand())
         self.router.register(ExportCommand())
 
+        from cascade.commands.setup.version import VersionCommand
+        from cascade.commands.setup.config import ConfigCommand
+        from cascade.commands.setup.doctor import DoctorCommand
+        from cascade.commands.setup.init import InitCommand
+        from cascade.commands.setup.env import EnvCommand
+        self.router.register(VersionCommand())
+        self.router.register(ConfigCommand())
+        self.router.register(DoctorCommand())
+        self.router.register(InitCommand())
+        self.router.register(EnvCommand())
+
     def on_key(self, event) -> None:
         """Globally intercept keys: palette nav + type-anywhere.
 
