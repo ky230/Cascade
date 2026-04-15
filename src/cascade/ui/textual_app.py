@@ -102,6 +102,19 @@ class CascadeApp(App):
         self.router.register(ClearCommand())
         self.router.register(ModelCommand())
 
+        from cascade.commands.core.compact import CompactCommand
+        from cascade.commands.core.resume import ResumeCommand
+        from cascade.commands.core.rename import RenameCommand
+        from cascade.commands.core.branch import BranchCommand
+        from cascade.commands.core.rewind import RewindCommand
+        from cascade.commands.core.export_cmd import ExportCommand
+        self.router.register(CompactCommand())
+        self.router.register(ResumeCommand())
+        self.router.register(RenameCommand())
+        self.router.register(BranchCommand())
+        self.router.register(RewindCommand())
+        self.router.register(ExportCommand())
+
     def on_key(self, event) -> None:
         """Globally intercept keys: palette nav + type-anywhere.
 
