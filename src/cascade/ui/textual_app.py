@@ -25,6 +25,7 @@ from textual.containers import VerticalScroll, Horizontal, Vertical
 from textual.widgets import Footer, Static, Input, Label
 from cascade.ui.widgets import PromptInput
 from cascade.ui.model_palette import ModelPalette
+from cascade.ui.theme_palette import ThemePalette
 from textual.binding import Binding
 from textual import on, events
 
@@ -126,6 +127,16 @@ class CascadeApp(App):
         self.router.register(InitCommand())
         self.router.register(EnvCommand())
 
+        from cascade.commands.ui.theme import ThemeCommand
+        from cascade.commands.ui.btw import BtwCommand
+        from cascade.commands.ui.shortcuts import ShortcutsCommand
+        self.router.register(ThemeCommand())
+        self.router.register(BtwCommand())
+        self.router.register(ShortcutsCommand())
+
+        # ── Theme state ──
+        self._current_theme = "dark"
+
     def on_key(self, event) -> None:
         """Globally intercept keys: palette nav + type-anywhere.
 
@@ -182,6 +193,29 @@ class CascadeApp(App):
         except Exception:
             pass
 
+        # ── Theme palette navigation (when visible) ──
+        try:
+            theme_palette = self.query_one("#theme-palette", ThemePalette)
+            if theme_palette.display:
+                if event.key in ("up", "down", "escape", "enter"):
+                    event.stop()
+                    event.prevent_default()
+
+                    if event.key == "up":
+                        theme_palette.move_up()
+                        return
+                    elif event.key == "down":
+                        theme_palette.move_down()
+                        return
+                    elif event.key == "enter":
+                        theme_palette.select_current()
+                        return
+                    elif event.key == "escape":
+                        theme_palette.cancel()
+                        return
+        except Exception:
+            pass
+
         # ── Type-anywhere: forward printable keys to input ──
         if event.is_printable:
             try:
@@ -216,6 +250,7 @@ class CascadeApp(App):
                 ),
                 CommandPalette(router=self.router, id="cmd-palette"),
                 ModelPalette(id="model-palette"),
+                ThemePalette(id="theme-palette"),
                 id="input-section",
             ),
             id="chat-history",
@@ -805,4 +840,22 @@ class CascadeApp(App):
         self.engine.client = ModelClient(provider=event.provider, model_name=event.model_id)
         self.update_footer()
         self.notify(f"✅ Switched to {event.display_name}")
+        self.query_one("#prompt-input", PromptInput).focus()
+
+    def show_theme_palette(self) -> None:
+        """Show the inline theme picker palette below the input."""
+        palette = self.query_one("#theme-palette", ThemePalette)
+        palette.populate(current_theme=self._current_theme)
+        container = self.query_one("#chat-history", VerticalScroll)
+        container.scroll_end(animate=False)
+
+    @on(ThemePalette.Selected)
+    def handle_theme_selected(self, event: ThemePalette.Selected) -> None:
+        """Apply theme switch from the inline palette."""
+        from cascade.ui.styles import get_tcss, hot_swap_css, THEMES
+        new_css = get_tcss(event.theme_name)
+        hot_swap_css(self, new_css)
+        self._current_theme = event.theme_name
+        t = THEMES[event.theme_name]
+        self.notify(f"■ Theme: {t.name} — {t.description}")
         self.query_one("#prompt-input", PromptInput).focus()

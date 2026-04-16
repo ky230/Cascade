@@ -206,6 +206,15 @@ class PromptInput(TextArea):
         except Exception:
             pass
 
+        # Check theme palette visibility
+        theme_palette_visible = False
+        try:
+            from cascade.ui.theme_palette import ThemePalette
+            tp = self.app.query_one("#theme-palette", ThemePalette)
+            theme_palette_visible = tp.display
+        except Exception:
+            pass
+
         # Command palette visible: let TAB/ESCAPE always bubble
         if palette_visible and event.key in ("tab", "escape"):
             return
@@ -219,6 +228,12 @@ class PromptInput(TextArea):
         if model_palette_visible and event.key == "escape":
             return
         if model_palette_visible and event.key in ("up", "down") and not self._history.is_browsing:
+            return
+
+        # Theme palette visible: let UP/DOWN/ESCAPE/ENTER bubble to App.on_key
+        if theme_palette_visible and event.key == "escape":
+            return
+        if theme_palette_visible and event.key in ("up", "down"):
             return
 
         # ── History navigation (no palette visible) ──
@@ -278,7 +293,12 @@ class PromptInput(TextArea):
             # Reset history navigation on submit
             self._history.reset_navigation()
 
-            # Case 0: Model palette visible → select model directly
+            # Case 0a: Theme palette visible → select theme directly
+            if theme_palette_visible:
+                tp.select_current()
+                return
+
+            # Case 0b: Model palette visible → select model directly
             if model_palette_visible:
                 mp.select_current()
                 return

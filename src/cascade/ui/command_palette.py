@@ -101,6 +101,15 @@ class CommandPalette(Vertical):
             line = Static(markup, classes=classes)
             self.mount(line)
 
+        # Scroll highlighted row into view (matches ModelPalette._render_items)
+        if self._matches:
+            try:
+                children = list(self.children)
+                if self._highlight < len(children):
+                    children[self._highlight].scroll_visible()
+            except Exception:
+                pass
+
     def move_up(self) -> None:
         """Move highlight up, wrapping around."""
         if not self._matches:
