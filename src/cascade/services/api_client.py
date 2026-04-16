@@ -12,6 +12,8 @@ class StreamResult:
     text: str = ""
     tool_calls: list = field(default_factory=list)
     finish_reason: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
     
 class ModelClient:
     def __init__(self, provider: str, model_name: str):
@@ -417,6 +419,7 @@ class ModelClient:
 
         kwargs = get_litellm_kwargs(self.provider, self.model_name)
         kwargs["stream"] = True
+        kwargs["stream_options"] = {"include_usage": True}
         if tools:
             kwargs["tools"] = tools
         
@@ -425,6 +428,8 @@ class ModelClient:
         text_parts = []
         tool_call_accum: dict[int, dict] = {}  # index -> {id, name, arguments_str}
         finish_reason = ""
+        input_tokens = 0
+        output_tokens = 0
         
         async for chunk in response:
             if not hasattr(chunk, 'choices') or len(chunk.choices) == 0:
@@ -455,6 +460,11 @@ class ModelClient:
                         entry["name"] = tc.function.name
                     if getattr(tc.function, 'arguments', None):
                         entry["arguments_str"] += tc.function.arguments
+
+            # Extract usage from final chunk (sent when stream_options include_usage is True)
+            if hasattr(chunk, 'usage') and chunk.usage:
+                input_tokens = getattr(chunk.usage, 'prompt_tokens', 0) or 0
+                output_tokens = getattr(chunk.usage, 'completion_tokens', 0) or 0
         
         # Parse accumulated tool calls
         parsed_tool_calls = []
@@ -474,4 +484,6 @@ class ModelClient:
             text="".join(text_parts),
             tool_calls=parsed_tool_calls,
             finish_reason=finish_reason,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )

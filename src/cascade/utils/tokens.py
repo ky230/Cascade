@@ -80,3 +80,35 @@ def estimate_message_tokens(messages: list[dict]) -> int:
         else:
             total += rough_token_estimate(str(content))
     return total
+
+
+def precise_token_count(messages: list[dict], litellm_model: str) -> int:
+    """Precise token count via LiteLLM tokenizer.
+
+    Args:
+        messages: LLM message list
+        litellm_model: LiteLLM model key (e.g. "gemini/gemini-3.1-flash-lite-preview")
+    Falls back to estimate_message_tokens() on error.
+    """
+    try:
+        from litellm import token_counter as litellm_token_counter
+        return litellm_token_counter(model=litellm_model, messages=messages)
+    except Exception:
+        return estimate_message_tokens(messages)
+
+
+def precise_token_count_by_role(messages: list[dict], litellm_model: str) -> dict:
+    """Token count broken down by role, via LiteLLM tokenizer."""
+    breakdown = {"system": 0, "user": 0, "assistant": 0, "tool": 0}
+    for m in messages:
+        role = m.get("role", "user")
+        bucket = role if role in breakdown else "tool"
+        try:
+            from litellm import token_counter as litellm_token_counter
+            tokens = litellm_token_counter(model=litellm_model, messages=[m])
+        except Exception:
+            content = m.get("content", "")
+            tokens = rough_token_estimate(str(content))
+        breakdown[bucket] += tokens
+    return breakdown
+

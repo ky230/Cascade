@@ -36,9 +36,17 @@ class StatusCommand(BaseCommand):
             1 for m in ctx.engine.messages if m.get("role") == "system"
         )
 
-        # Token estimate (block-aware, ref: tokenEstimation.ts L203-435)
-        from cascade.utils.tokens import estimate_message_tokens
-        est_tokens = estimate_message_tokens(ctx.engine.messages)
+        # Token count — prefer real API usage, fallback to LiteLLM estimate
+        api_input = getattr(ctx.engine, "session_input_tokens", 0)
+        api_output = getattr(ctx.engine, "session_output_tokens", 0)
+        if (api_input + api_output) > 0:
+            token_str = f"{api_input + api_output:,}"
+        else:
+            from cascade.utils.tokens import precise_token_count
+            from cascade.services.api_config import get_litellm_kwargs
+            kwargs = get_litellm_kwargs(ctx.engine.client.provider, ctx.engine.client.model_name)
+            est_tokens = precise_token_count(ctx.engine.messages, kwargs["model"])
+            token_str = f"~{est_tokens:,}"
 
         # Session duration
         start_time = getattr(ctx.repl, "_session_start", None)
@@ -66,7 +74,7 @@ class StatusCommand(BaseCommand):
             f"  [bold]Session:[/bold]   {duration}",
             f"  [bold]Messages:[/bold]  {msg_count} total  "
             f"({user_msgs} user / {assistant_msgs} assistant / {system_msgs} system)",
-            f"  [bold]Est. tokens:[/bold] ~{est_tokens:,}",
+            f"  [bold]Tokens:[/bold]    {token_str}",
             f"  [bold]Tools:[/bold]     {tool_count} registered",
             f"  [bold]Theme:[/bold]     {theme}",
         ]

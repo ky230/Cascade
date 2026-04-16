@@ -513,12 +513,22 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 |---------|---------|--------|------|-------|
 | `/auto` | — | ✅ Full | `commands/tools/auto.py` | Cascade original. Toggles `PermissionEngine.mode` between AUTO (confirm destructive) and BYPASS (auto-approve all). No execution flow changes needed. |
 
-#### Phase 9.6 (Batch 6): Rules & Context — 2 commands
+#### Phase 9.6 (Batch 6): Rules, Context & Token Precision — 2 commands + infrastructure
 
 | Command | Aliases | Status | File | Notes |
 |---------|---------|--------|------|-------|
-| `/rules` | — | ✅ Full | `commands/rules/rules.py` + `editor_screen.py` | Cascade original (renamed from Claude Code `/memory`). Textual OptionList file picker + TextArea inline editor + Ctrl+S hot-reload. Surpasses Claude Code's `$EDITOR` approach. |
-| `/context` | — | ⚠️ **Stub** | `commands/rules/context.py` | STUB — char/4 rough token estimation with color-coded progress bar. Real implementation needs `analyzeContextUsage` engine (v0.4.0+). |
+| `/rules` | — | ✅ Full | `commands/rules/rules.py` + `editor_screen.py` | Cascade original (renamed from Claude Code `/memory`). Textual OptionList file picker + TextArea inline editor + Ctrl+S hot-reload via `engine.set_system_prompt()`. Surpasses Claude Code's `$EDITOR` approach. |
+| `/context` | — | ✅ Full | `commands/rules/context.py` | Real API usage data (3-tier pipeline: `api_client` → `query.py` session accumulators → display). Shows last-call breakdown (in/out), session totals, progress bar. `_CONTEXT_OVERRIDES` for 23 non-LiteLLM models. Falls back to litellm `get_model_info()` for max context window. |
+
+**Token Precision Overhaul (bundled with Batch 6):**
+
+| File | Change |
+|------|--------|
+| `services/api_client.py` | `StreamResult` +`input_tokens`/`output_tokens`; `stream_options={"include_usage": True}` for LiteLLM path |
+| `engine/query.py` | Session-level accumulators (`session_input_tokens`, `session_output_tokens`) + per-call trackers (`last_input_tokens`, `last_output_tokens`). All 3 return paths (end_turn, user_denied, max_rounds) correctly accumulate |
+| `utils/tokens.py` | +`precise_token_count()` (LiteLLM tokenizer with rough fallback) + `precise_token_count_by_role()` |
+| `commands/workflow/status.py` | Dual-mode: API real values (no `~`) or LiteLLM estimate (`~` prefix) |
+| `commands/core/compact.py` | Same dual-mode pattern |
 
 #### Removed by Design
 
@@ -536,7 +546,8 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 | Module | File | Purpose |
 |--------|------|---------|
 | CASCADE.md Loading | `src/cascade/bootstrap/system_prompt.py` | `CASCADE_MD_PATHS` + `get_cascade_md_files()` — discovers CASCADE.md at project/user/global levels and injects into system prompt. Prerequisite for `/rules` hot-reload. |
-| Token Estimation | `src/cascade/utils/tokens.py` | Block-aware rough estimation aligned with Claude Code `tokenEstimation.ts` L203-435. UTF-8 byte length for CJK. Handles text, tool_use, tool_result, image (2000), thinking, redacted_thinking blocks. |
+| Token Estimation | `src/cascade/utils/tokens.py` | Block-aware rough estimation aligned with Claude Code `tokenEstimation.ts` L203-435. UTF-8 byte length for CJK. Handles text, tool_use, tool_result, image (2000), thinking, redacted_thinking blocks. Also contains `precise_token_count()` and `precise_token_count_by_role()` wrappers for LiteLLM tokenizer with rough fallback. |
+| Token Pipeline | `api_client.py` → `query.py` → commands | 3-tier real API usage tracking: `StreamResult` extracts `prompt_tokens`/`completion_tokens` from stream chunks → `QueryEngine` accumulates session-level and per-call counters → `/context`, `/status`, `/compact` display with dual-mode (API real vs `~` LiteLLM estimate). |
 | Theme System | `src/cascade/ui/styles.py` | Multi-theme (ThemeColors dataclass, `build_tcss()` generator, `hot_swap_css()` for Textual 8.x CssSource API) |
 | Theme Palette | `src/cascade/ui/theme_palette.py` | Interactive ↑↓ picker with live preview and Esc rollback |
 
@@ -556,9 +567,8 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 | Metric | Count |
 |--------|-------|
 | Total commands | **24** |
-| ✅ Full implementation | **16** |
+| ✅ Full implementation | **17** |
 | ⚠️ Partial (functional but incomplete) | **2** (`/compact`, `/btw`) |
-| ⚠️ Stub (functional but rough) | **1** (`/context`) |
 | 🔴 Pure stub | **4** (`/resume`, `/rename`, `/branch`, `/rewind`) |
 | Removed by design | **6** (`/brief`, `/diff`, `/permissions`, `/hooks`, `/sandbox`, `/debug-tool-call`) |
 

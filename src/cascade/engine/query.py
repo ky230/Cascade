@@ -38,6 +38,12 @@ class QueryEngine:
         self.messages: List[Dict] = []
         self.registry = registry
         self.permissions = permissions
+        # Session-level token counters (accumulated from API usage responses)
+        self.session_input_tokens: int = 0
+        self.session_output_tokens: int = 0
+        # Most recent API call's token counts (overwritten each call)
+        self.last_input_tokens: int = 0
+        self.last_output_tokens: int = 0
 
     def set_system_prompt(self, prompt: str) -> None:
         if self.messages and self.messages[0].get("role") == "system":
@@ -58,6 +64,8 @@ class QueryEngine:
 
         tool_schemas = self.registry.get_tool_schemas() if self.registry else None
         all_tool_uses = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for round_idx in range(self.config.max_tool_rounds):
             # Stream the LLM response
@@ -66,6 +74,13 @@ class QueryEngine:
                 tools=tool_schemas if tool_schemas else None,
                 on_token=on_token,
             )
+
+            # Accumulate token usage from API response
+            total_input_tokens += result.input_tokens
+            total_output_tokens += result.output_tokens
+            # Track the most recent call (for context window display)
+            self.last_input_tokens = result.input_tokens
+            self.last_output_tokens = result.output_tokens
 
             # Build the assistant message for the transcript
             assistant_msg: Dict[str, Any] = {"role": "assistant", "content": result.text or ""}
@@ -85,10 +100,14 @@ class QueryEngine:
 
             # If no tool calls, we're done
             if not result.tool_calls:
+                self.session_input_tokens += total_input_tokens
+                self.session_output_tokens += total_output_tokens
                 return TurnResult(
                     output=result.text,
                     tool_uses=all_tool_uses,
                     stop_reason="end_turn",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
                 )
 
             # Execute each tool call
@@ -162,14 +181,22 @@ class QueryEngine:
 
             # Hard stop: user denied → no more LLM calls, return to prompt
             if abort_remaining:
+                self.session_input_tokens += total_input_tokens
+                self.session_output_tokens += total_output_tokens
                 return TurnResult(
                     output="",
                     tool_uses=all_tool_uses,
                     stop_reason="user_denied",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
                 )
 
+        self.session_input_tokens += total_input_tokens
+        self.session_output_tokens += total_output_tokens
         return TurnResult(
             output="Max tool rounds reached",
             tool_uses=all_tool_uses,
             stop_reason="max_rounds",
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
         )

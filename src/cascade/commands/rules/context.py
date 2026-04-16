@@ -1,55 +1,40 @@
 """Context window usage visualization.
 
-Reference: claude-code src/commands/context/context-noninteractive.ts (326 lines)
-Claude Code impl: collectContextData() -> analyzeContextUsage() -> Markdown table.
-Precise token counting via microcompactMessages + model tokenizer.
-Shows categories: System prompt, Tools, Conversation, Memory, MCP, Skills, Agents.
-Cascade impl: STUB. Uses rough char/4 estimation. Missing:
-- analyzeContextUsage engine (precise tokenization)
-- microcompactMessages (context compression stats)
-- MCP tools / Skills / Agents token breakdown
-These will be implemented when the full token tracking infrastructure
-is built (planned in v0.4.0 Phase 0 Task 8 / long-term plan Phase 2+5).
+Shows real API token usage data only. No offline estimates.
+Before the first API call, all counters are 0.
+After each call, displays the last call's token breakdown
+and cumulative session totals.
 """
 from cascade.commands.base import BaseCommand, CommandContext
+from cascade.services.api_config import get_litellm_kwargs
 
 
 class ContextCommand(BaseCommand):
-    """Show context window usage with rough estimation.
+    """Show context window usage from real API token counters.
 
-    Reference: claude-code src/commands/context/context-noninteractive.ts (326 lines)
-    Claude Code: precise tokenization via analyzeContextUsage().
-    Cascade: STUB — char/4 estimation until token tracking infra is built.
+    Displays 0 before the first API call. After each call, shows
+    the last call's token breakdown and cumulative session totals.
     """
     name = "context"
-    description = "Show context window usage (stub: rough estimates)"
+    description = "Show context window usage"
     category = "Rules"
 
     async def execute(self, ctx: CommandContext, args: str) -> None:
-        messages = ctx.engine.messages
         model_name = ctx.engine.client.model_name
+        provider = ctx.engine.client.provider
 
-        # Categorize message chars (rough estimation)
-        user_chars = sum(
-            len(str(m.get("content", "")))
-            for m in messages if m.get("role") == "user"
-        )
-        assistant_chars = sum(
-            len(str(m.get("content", "")))
-            for m in messages if m.get("role") == "assistant"
-        )
-        system_chars = sum(
-            len(str(m.get("content", "")))
-            for m in messages if m.get("role") == "system"
-        )
-        tool_chars = sum(
-            len(str(m.get("content", "")))
-            for m in messages if m.get("role") == "tool"
-        )
+        # Resolve LiteLLM model key for max context query
+        kwargs = get_litellm_kwargs(provider, model_name)
+        litellm_model = kwargs["model"]
+        max_tokens = self._get_max_tokens(litellm_model)
 
-        total_chars = user_chars + assistant_chars + system_chars + tool_chars
-        total_tokens = total_chars // 4
-        max_tokens = self._estimate_max_tokens(model_name)
+        # Read real API usage counters (0 if no API calls yet)
+        last_input = getattr(ctx.engine, "last_input_tokens", 0)
+        last_output = getattr(ctx.engine, "last_output_tokens", 0)
+        session_input = getattr(ctx.engine, "session_input_tokens", 0)
+        session_output = getattr(ctx.engine, "session_output_tokens", 0)
+
+        total_tokens = last_input + last_output
         pct = min(100.0, (total_tokens / max_tokens * 100)) if max_tokens > 0 else 0
 
         # Progress bar
@@ -62,32 +47,69 @@ class ContextCommand(BaseCommand):
         )
 
         lines = [
-            "[bold]Context Usage[/bold]  [dim](stub: rough estimates)[/dim]\n",
+            "[bold]Context Usage[/bold]\n",
             f"  Model: [bold]{model_name}[/bold]",
-            f"  Tokens: ~{total_tokens:,} / {max_tokens:,} ({pct:.1f}%)",
+            f"  Context: {total_tokens:,} / {max_tokens:,} ({pct:.1f}%)",
             f"  {bar}\n",
-            "  [bold]Category Breakdown[/bold]",
-            f"    System:    ~{system_chars // 4:,} tokens",
-            f"    User:      ~{user_chars // 4:,} tokens",
-            f"    Assistant: ~{assistant_chars // 4:,} tokens",
-            f"    Tool:      ~{tool_chars // 4:,} tokens",
-            f"\n  Messages: {len(messages)} total",
         ]
+
+        if last_input > 0:
+            lines.append(f"  Last call: {last_input:,} in / {last_output:,} out")
+
+        if session_input > 0:
+            lines.append(
+                f"  Session total: {session_input + session_output:,} tokens "
+                f"({session_input:,} in / {session_output:,} out)"
+            )
+
+        lines.append(f"\n  Messages: {len(ctx.engine.messages)} total")
 
         await ctx.output_rich("\n".join(lines))
 
-    def _estimate_max_tokens(self, model_name: str) -> int:
-        """Rough max context window by model family."""
-        name = model_name.lower()
-        if "claude" in name:
-            return 200_000
-        elif "gpt-4o" in name:
+    # Manual context window overrides for models LiteLLM doesn't know
+    _CONTEXT_OVERRIDES: dict[str, int] = {
+        # Grok language models: all 2M context
+        "grok-4.20-0309-reasoning": 2_000_000,
+        "grok-4.20-0309-non-reasoning": 2_000_000,
+        "grok-4.20-multi-agent-0309": 2_000_000,
+        "grok-4-1-fast-reasoning": 2_000_000,
+        "grok-4-1-fast-non-reasoning": 2_000_000,
+        # Image generation models: fallback 200K
+        "grok-imagine-image-pro": 200_000,
+        "gemini-3.1-flash-image-preview": 200_000,
+        # Xiaomi MiMo-V2
+        "mimo-v2-pro": 1_000_000,
+        "mimo-v2-omni": 256_000,
+        "mimo-v2-flash": 256_000,
+        # Alibaba Qwen: all 1M
+        "qwen3.6-plus": 1_000_000,
+        "qwen3.5-flash": 1_000_000,
+        "qwen3.5-plus": 1_000_000,
+        "qwen3-coder-plus": 1_000_000,
+        # MiniMax: all 204,800 (input+output combined)
+        "MiniMax-M2.7": 204_800,
+        "MiniMax-M2.7-highspeed": 204_800,
+        "MiniMax-M2.5": 204_800,
+        "MiniMax-M2.5-highspeed": 204_800,
+        # ZhipuAI GLM: 5.x/4.7/4.6 = 200K; 4.5 and below = 128K (matches fallback)
+        "glm-5.1": 200_000,
+        "glm-5-turbo": 200_000,
+        "glm-5": 200_000,
+        "glm-4.7": 200_000,
+        "glm-4.6": 200_000,
+    }
+
+    def _get_max_tokens(self, litellm_model: str) -> int:
+        """Query context window size. Checks manual overrides first,
+        then LiteLLM model info, then falls back to 128k."""
+        # Strip provider prefix for override lookup (e.g. "xai/grok-4.20..." -> "grok-4.20...")
+        bare_model = litellm_model.split("/", 1)[-1] if "/" in litellm_model else litellm_model
+        if bare_model in self._CONTEXT_OVERRIDES:
+            return self._CONTEXT_OVERRIDES[bare_model]
+        try:
+            from litellm import get_model_info
+            info = get_model_info(litellm_model)
+            return info.get("max_input_tokens", 128_000)
+        except Exception:
             return 128_000
-        elif "gpt-4" in name:
-            return 128_000
-        elif "gemini" in name:
-            return 1_000_000
-        elif "deepseek" in name:
-            return 64_000
-        else:
-            return 128_000
+
