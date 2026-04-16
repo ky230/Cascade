@@ -19,11 +19,9 @@ class CompactCommand(BaseCommand):
             await ctx.output_rich("[dim]No messages to compact.[/dim]")
             return
 
-        # Estimate token count (rough: 4 chars ≈ 1 token)
-        total_chars = sum(
-            len(str(m.get("content", ""))) for m in ctx.engine.messages
-        )
-        est_tokens = total_chars // 4
+        # Token estimate (block-aware, ref: tokenEstimation.ts L203-435)
+        from cascade.utils.tokens import estimate_message_tokens
+        est_tokens = estimate_message_tokens(ctx.engine.messages)
 
         if msg_count <= 2:
             await ctx.output_rich(

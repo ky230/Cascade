@@ -458,6 +458,107 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 ```
 
 
+## Phase 9: Slash Command Suite (20 commands) ✅
+- **Completed:** 2026-04-16
+- **Branch:** `feat/phase8-slash-commands`
+- **Reviewed by:** Role 3 (Phases 9.1-9.3.5, total 13 rounds across 4 batches)
+
+### Command Inventory
+
+#### Phase 9.1 (Batch 1): Session Management — 6 commands
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/compact` | — | ⚠️ **Partial** | `commands/core/compact.py` | Message counting + token estimation only. No LLM summarization. |
+| `/export` | — | ✅ Full | `commands/core/export_cmd.py` | JSON export with auto-filenames and sanitization |
+| `/resume` | `/continue` | 🔴 **Stub** | `commands/core/resume.py` | Outputs "coming in Phase 10" |
+| `/rename` | — | 🔴 **Stub** | `commands/core/rename.py` | Outputs "coming in Phase 10" |
+| `/branch` | `/fork` | 🔴 **Stub** | `commands/core/branch.py` | Outputs "coming in Phase 10" |
+| `/rewind` | `/checkpoint` | 🔴 **Stub** | `commands/core/rewind.py` | Outputs "coming in Phase 10" |
+
+#### Phase 9.2 (Batch 2): Setup & Diagnostics — 5 commands
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/version` | — | ✅ Full | `commands/setup/version.py` | Reads `banner.VERSION` |
+| `/config` | `/settings` | ✅ Full | `commands/setup/config.py` | Provider, model, tools, permissions |
+| `/doctor` | — | ✅ Full | `commands/setup/doctor.py` | HEP-aware: grid proxy, CMSSW, HTCondor |
+| `/init` | — | ✅ Full | `commands/setup/init.py` | Static CASCADE.md template (simplified vs Claude Code's LLM-driven 8-phase init) |
+| `/env` | — | ✅ Full | `commands/setup/env.py` | Cascade original — API key redaction, HEP vars, CASCADE_* vars |
+
+#### Phase 9.3 (Batch 3): UI — 3 commands
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/theme` | — | ✅ Full | `commands/ui/theme.py` | Interactive picker, live preview, hot_swap_css(), 3 themes (dark/light/cms) |
+| `/btw` | — | ⚠️ **Partial** | `commands/ui/btw.py` | Appends user aside to messages — equivalent to typing normally. Real `/btw` needs mid-stream injection. |
+| `/shortcuts` | `/keys`, `/keybindings` | ✅ Full | `commands/ui/shortcuts.py` | Display keyboard shortcuts |
+
+#### Phase 9.3.5 (Batch 3.5): Workflow — 2 commands
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/copy` | — | ✅ Full | `commands/workflow/copy.py` | subprocess pbcopy/xclip, `/copy N`, `/tmp/cascade/` fallback |
+| `/status` | `/summary`, `/stats` | ✅ Full | `commands/workflow/status.py` | Version, model, session duration, message counts (user/assistant/system), block-aware token estimation, tool count, theme |
+
+#### Removed by Design
+
+| Command | Reason |
+|---------|--------|
+| `/brief` | Decided against by Role 1 (Phase 9.3) |
+| `/diff` | Superseded by BashTool + `git diff` — AI can see the output; `/diff` would only show it to the user (Phase 9.3.5) |
+
+### Infrastructure Added
+
+| Module | File | Purpose |
+|--------|------|---------|
+| Token Estimation | `src/cascade/utils/tokens.py` | Block-aware rough estimation aligned with Claude Code `tokenEstimation.ts` L203-435. UTF-8 byte length for CJK. Handles text, tool_use, tool_result, image (2000), thinking, redacted_thinking blocks. |
+| Theme System | `src/cascade/ui/styles.py` | Multi-theme (ThemeColors dataclass, `build_tcss()` generator, `hot_swap_css()` for Textual 8.x CssSource API) |
+| Theme Palette | `src/cascade/ui/theme_palette.py` | Interactive ↑↓ picker with live preview and Esc rollback |
+
+### Commits
+```
+e8507e7  feat(commands): Phase 9.1 Batch 1 — add 6 session management commands
+63a8383  feat(commands): Phase 9.2 Batch 2 — add 5 setup & diagnostics commands
+51eab4e  feat(ui): add /theme /btw /shortcuts commands (Phase 9.3 Batch 3)
+(pending) feat(workflow): add /copy /status commands + token estimation (Phase 9.3.5)
+```
+
+### Summary
+
+| Metric | Count |
+|--------|-------|
+| Total commands | **20** |
+| ✅ Full implementation | **13** |
+| ⚠️ Partial (functional but incomplete) | **2** (`/compact`, `/btw`) |
+| 🔴 Pure stub | **4** (`/resume`, `/rename`, `/branch`, `/rewind`) |
+| Removed by design | **2** (`/brief`, `/diff`) |
+
+---
+
+## 🔴 Stub & ⚠️ Partial Commands — Roadmap Cross-Reference
+
+> 对照 [Cascade_long_term_plan_v3.md](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md) 检查哪些 stub/partial 命令已有完整实现计划。
+
+### ✅ 计划已覆盖
+
+| Command | 当前状态 | 计划覆盖 | 计划位置 |
+|---------|---------|---------|---------|
+| `/resume` | 🔴 Stub | ✅ [Phase 8: Session Resume](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md#L1536) — Task 20 | L1536-1554: `session_resume.py` + `commands/session/resume.py` |
+| `/compact` | ⚠️ Partial | ✅ [Phase 5: Context Compaction](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md#L1208) — Task 14 | L1208-1213: `services/compact/compactor.py` + `summarizer.py` |
+
+### ❌ 计划未覆盖 — 列入 Open Questions
+
+| Command | 当前状态 | 说明 |
+|---------|---------|------|
+| `/rename` | 🔴 Stub | 依赖 Session Storage (Plan Phase 2 Task 8)，但 `/rename` 命令本身未在 long-term plan 中提及 |
+| `/branch` (`/fork`) | 🔴 Stub | 会话分叉逻辑未在任何 Task 中规划 |
+| `/rewind` (`/checkpoint`) | 🔴 Stub | Checkpoint/snapshot 系统未在任何 Task 中规划 |
+| `/btw` | ⚠️ Partial | Mid-stream injection 需要 streaming engine 支持边流边收输入，计划中无此项 |
+
+---
+
+
 ## Open Questions (v0.3.0)
 
 > 以下问题在当前版本周期中被识别但尚未解决，记录于此以防遗忘。
@@ -468,10 +569,16 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 | OQ-2 | `cas-texwriter` 学术论文同步能力的归属——当前以 Antigravity skill 形式实现（8 步 Digest-First Patch 工作流），后续需评估是否独立为系统级架构模块（如 `docs/paper/` 管线自动化）还是保留为可插拔 skill | `cas-texwriter-discussion` 圆桌 R1-R2 | 💡 当前 skill 形式满足需求，累积 2-3 次实际论文同步后再评估架构提升必要性 |
 | OQ-3 | `cas-roundtable` skill 的独立价值——多 Agent 结构化交互方式，未来可能影响框架级 multi-agent 设计 | 圆桌会议实践总结 | 💡 观察中，积累更多实际使用经验后评估 |
 | OQ-4 | **环境隔离策略冲突 (Cascade `.venv` vs `pandoc` vs `lxplus cmsenv`)** <br><br> 当前系统存在三套独立工具链：<br> 1. Cascade CLI 及依赖 (Python 生态，常驻 `.venv`) <br> 2. `pandoc` + `pandoc-crossref` (Haskell 编译独立二进制，无法放入 `.venv`，需放置于 `~/.local/bin`) <br> 3. HEP 领域工具 (如 lxplus 上的 CMSSW + ROOT，必须 source `cmsenv` 注入环境变量)。<br><br> **潜在冲突：** `cmsenv` 会劫持 PYTHONPATH 和 PATH，若与 Cascade 的 `.venv` Python 版本/库不一致，将引发环境崩溃。特别是未来开发 Phase (HEP Tool Wrapper) 时，必须使用 ROOT Python Bindings。<br><br> **评估的三种解决方案：**<br> - **A:** Cascade `.venv` 在 `cmsenv` *之后*激活，通过 `--system-site-packages` 继承 ROOT。缺点：依然难以保证依赖纯净，极易引发版本冲突。<br> - **B:** 使用独立的 `conda env` 管理 Cascade，并通过 `conda install root` 引入 ROOT。缺点：剥离了 CMSSW 的官方依赖树，可能与部分官方宏脚本不兼容。<br> - **C (✨ 推荐): 完全隔离架构** <br> &nbsp;&nbsp;&nbsp;&nbsp;1. Cascade CLI 本体及其 LLM/.venv 保持绝对纯净，通过独立的 bash alias 或 wrapper 运行。<br> &nbsp;&nbsp;&nbsp;&nbsp;2. 排版套件 `pandoc` 使用 CVMFS 共享包或仅存放于 `~/.local/bin` 作为独立二进制调用。<br> &nbsp;&nbsp;&nbsp;&nbsp;3. 任何需要调用 HEP 工具（如 ROOT / CMSSW 脚本）的 Agent Task，必须通过 `subprocess` （`BashTool`）去单独起一个干净的 shell，在里面执行 `source cmsenv && python my_analysis.py`。主进程环境永不污染。<br><br> | `cas-texwriter-discussion` 🟡 Y4 | 💡 当前 `cas-texwriter` 不依赖 `cmsenv`。明确采用 **选项 C** 作为未来 HEP Tool Wrappers 的基础设施设计原则。 |
+| OQ-5 | **`/rename` stub — 会话命名系统** <br> 依赖 Session Storage (Plan Phase 2 Task 8) 但 `/rename` 命令和会话命名逻辑本身未在 `Cascade_long_term_plan_v3.md` 的任何 Task 中规划。需要决定：(a) 加入 Phase 8 Session Resume 作为子 Task，或 (b) 独立 Phase 规划 | Phase 9 审查 | 📌 待决定归属 |
+| OQ-6 | **`/branch` (`/fork`) stub — 会话分叉** <br> 需要 deep copy messages + 独立 session ID。Claude Code 同名命令存在但与 subagent fork 重叠。需要决定：(a) 实现为轻量 message fork，或 (b) 与将来的 multi-agent 系统合并设计 | Phase 9 审查 | 📌 待决定是否实现 |
+| OQ-7 | **`/rewind` (`/checkpoint`) stub — 对话回退** <br> 需要 message snapshot stack。Claude Code 同名命令存在但源码较薄（仅 index.ts 入口）。需要决定：(a) 简单实现为 truncate messages 到指定轮，或 (b) full checkpoint with branching | Phase 9 审查 | 📌 待决定实现深度 |
+| OQ-8 | **`/btw` partial — mid-stream 注入** <br> 当前等同于直接发消息。真正的 `/btw` 需要 streaming 引擎支持边流边收输入。三种实现路径：A 打断+重发（中等难度），B side fork（高难度），C 下轮生效（低难度但无核心价值）。`Cascade_long_term_plan_v3.md` 中无此项规划 | Phase 9 审查 | 📌 待决定实现路径 |
 
 ---
 
 ### Next Steps
-→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining 33 commands (Batch 1-7 + Final).
+→ Phase 9.3.5 待 commit + push。
+→ Phase 9.4 (Batch 4): Tools & Auto Mode commands (`/permissions`, `/hooks`, `/debug_tool`, `/sandbox`, `/auto`)
+→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining commands (Batch 4-7).
 
 ---

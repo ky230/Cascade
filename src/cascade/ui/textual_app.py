@@ -134,8 +134,17 @@ class CascadeApp(App):
         self.router.register(BtwCommand())
         self.router.register(ShortcutsCommand())
 
+        from cascade.commands.workflow.copy import CopyCommand
+        from cascade.commands.workflow.status import StatusCommand
+        self.router.register(CopyCommand())
+        self.router.register(StatusCommand())
+
         # ── Theme state ──
         self._current_theme = "dark"
+
+        # ── Session timer (for /status) ──
+        import time
+        self._session_start = time.time()
 
     def on_key(self, event) -> None:
         """Globally intercept keys: palette nav + type-anywhere.
