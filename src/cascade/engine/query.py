@@ -38,6 +38,12 @@ class QueryEngine:
         self.messages: List[Dict] = []
         self.registry = registry
         self.permissions = permissions
+        # Session-level token counters (accumulated from API usage responses)
+        self.session_input_tokens: int = 0
+        self.session_output_tokens: int = 0
+        # Most recent API call's token counts (overwritten each call)
+        self.last_input_tokens: int = 0
+        self.last_output_tokens: int = 0
 
     def set_system_prompt(self, prompt: str) -> None:
         if self.messages and self.messages[0].get("role") == "system":
@@ -49,8 +55,8 @@ class QueryEngine:
         self,
         user_input: str,
         on_token: Callable[[str], None] | None = None,
-        on_tool_start: Callable[[str, dict], None] | None = None,
-        on_tool_end: Callable[[str, ToolResult], None] | None = None,
+        on_tool_start: Callable[[str, dict], Awaitable[None]] | None = None,
+        on_tool_end: Callable[[str, ToolResult], Awaitable[None]] | None = None,
         ask_user: Callable[[str], Awaitable[bool]] | None = None,
     ) -> TurnResult:
         """Process a user message through the agentic tool loop."""
@@ -58,6 +64,8 @@ class QueryEngine:
 
         tool_schemas = self.registry.get_tool_schemas() if self.registry else None
         all_tool_uses = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for round_idx in range(self.config.max_tool_rounds):
             # Stream the LLM response
@@ -66,6 +74,13 @@ class QueryEngine:
                 tools=tool_schemas if tool_schemas else None,
                 on_token=on_token,
             )
+
+            # Accumulate token usage from API response
+            total_input_tokens += result.input_tokens
+            total_output_tokens += result.output_tokens
+            # Track the most recent call (for context window display)
+            self.last_input_tokens = result.input_tokens
+            self.last_output_tokens = result.output_tokens
 
             # Build the assistant message for the transcript
             assistant_msg: Dict[str, Any] = {"role": "assistant", "content": result.text or ""}
@@ -85,20 +100,36 @@ class QueryEngine:
 
             # If no tool calls, we're done
             if not result.tool_calls:
+                self.session_input_tokens += total_input_tokens
+                self.session_output_tokens += total_output_tokens
                 return TurnResult(
                     output=result.text,
                     tool_uses=all_tool_uses,
                     stop_reason="end_turn",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
                 )
 
             # Execute each tool call
+            abort_remaining = False
+
             for tc in result.tool_calls:
                 tool_name = tc["name"]
                 tool_args = tc["arguments"]
                 tool_id = tc["id"]
 
+                if abort_remaining:
+                    # Silently fill remaining tool IDs so message history stays valid
+                    self.messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": "Cancelled: user denied a previous tool call.",
+                    })
+                    continue
+
+                # Notify UI of tool start BEFORE asking for permission
                 if on_tool_start:
-                    on_tool_start(tool_name, tool_args)
+                    await on_tool_start(tool_name, tool_args)
 
                 # Permission check
                 if self.permissions and self.registry:
@@ -111,7 +142,7 @@ class QueryEngine:
                                 is_error=True,
                             )
                             if on_tool_end:
-                                on_tool_end(tool_name, tool_result)
+                                await on_tool_end(tool_name, tool_result)
                             all_tool_uses.append({
                                 "name": tool_name,
                                 "input": tool_args,
@@ -123,6 +154,7 @@ class QueryEngine:
                                 "tool_call_id": tool_id,
                                 "content": tool_result.output,
                             })
+                            abort_remaining = True
                             continue
 
                 if self.registry:
@@ -131,7 +163,7 @@ class QueryEngine:
                     tool_result = ToolResult(output=f"No registry for {tool_name}", is_error=True)
 
                 if on_tool_end:
-                    on_tool_end(tool_name, tool_result)
+                    await on_tool_end(tool_name, tool_result)
 
                 all_tool_uses.append({
                     "name": tool_name,
@@ -147,8 +179,24 @@ class QueryEngine:
                     "content": tool_result.output,
                 })
 
+            # Hard stop: user denied → no more LLM calls, return to prompt
+            if abort_remaining:
+                self.session_input_tokens += total_input_tokens
+                self.session_output_tokens += total_output_tokens
+                return TurnResult(
+                    output="",
+                    tool_uses=all_tool_uses,
+                    stop_reason="user_denied",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                )
+
+        self.session_input_tokens += total_input_tokens
+        self.session_output_tokens += total_output_tokens
         return TurnResult(
             output="Max tool rounds reached",
             tool_uses=all_tool_uses,
             stop_reason="max_rounds",
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
         )

@@ -1,3 +1,10 @@
+# Antigravity workspace rules
+.agents/
+
+# Paper source files (private — only compiled PDF is public)
+docs/paper/
+!docs/paper/ANnote-cascade.pdf
+
 # Environment Variables
 .env
 .env.local
