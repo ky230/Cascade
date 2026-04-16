@@ -541,6 +541,22 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 | `/sandbox` | Removed from Batch 4 — Claude Code depends on closed-source `@anthropic-ai/sandbox-runtime` |
 | `/debug-tool-call` | Removed from Batch 4 — Claude Code itself disabled it (`isEnabled: false, isHidden: true`) |
 
+#### Phase 9.7 (Batch 7): Plugin & Advanced Commands — ❌ CANCELLED
+
+> **取消日期:** 2026-04-16
+> **取消原因:** `/model` 已在 Phase 9.4 实现，`/plugin` `/insights` 仅为 stub，
+> `/skills` `/cost` `/effort` 依赖底层基础设施，将在 Long-Term Plan 对应 Phase 建好基础后实现。
+> **计划文件:** [`phase9.7-batch7-plugin-commands.md`](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/plans/v0.3.0/phase9.7-batch7-plugin-commands.md)
+
+| Command | 原计划状态 | 去向 |
+|---------|-----------|------|
+| `/model` | ✅ 已实现 (Phase 9.4) | — |
+| `/cost` | 文本版 | → Long-Term Plan Phase 2 Task 7 (`cost_tracker.py`) |
+| `/skills` | 文本列表 | → Long-Term Plan 🟡 Task 18 (`skills/`) |
+| `/plugin` | Stub | → Long-Term Plan 🟡 Task 17 (`plugins/`) |
+| `/effort` | 文本选择 | ❓ 未覆盖 — 见 Open Questions OQ-9 |
+| `/insights` | Stub | ❓ 未覆盖 — 见 Open Questions OQ-10 |
+
 ### Infrastructure Added
 
 | Module | File | Purpose |
@@ -571,12 +587,13 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 | ⚠️ Partial (functional but incomplete) | **2** (`/compact`, `/btw`) |
 | 🔴 Pure stub | **4** (`/resume`, `/rename`, `/branch`, `/rewind`) |
 | Removed by design | **6** (`/brief`, `/diff`, `/permissions`, `/hooks`, `/sandbox`, `/debug-tool-call`) |
+| ❌ Phase cancelled | **5** (`/plugin`, `/skills`, `/cost`, `/effort`, `/insights` — 9.7 取消) |
 
 ---
 
 ## 🔴 Stub & ⚠️ Partial Commands — Roadmap Cross-Reference
 
-> 对照 [Cascade_long_term_plan_v3.md](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md) 检查哪些 stub/partial 命令已有完整实现计划。
+> 对照 [Cascade_long_term_plan_v3.md](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md) 检查哪些 stub/partial/cancelled 命令已有完整实现计划。
 
 ### ✅ 计划已覆盖
 
@@ -584,6 +601,9 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 |---------|---------|---------|---------|
 | `/resume` | 🔴 Stub | ✅ [Phase 8: Session Resume](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md#L1536) — Task 20 | L1536-1554: `session_resume.py` + `commands/session/resume.py` |
 | `/compact` | ⚠️ Partial | ✅ [Phase 5: Context Compaction](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/Cascade_long_term_plan_v3.md#L1208) — Task 14 | L1208-1213: `services/compact/compactor.py` + `summarizer.py` |
+| `/cost` | ❌ 9.7 取消 | ✅ Phase 2 Task 7: `services/cost_tracker.py` | L644: per-model usage tracking + USD cost |
+| `/plugin` | ❌ 9.7 取消 | ✅ 🟡 未来 Task 17: Plugin 系统 | L1750: `plugins/builtinPlugins.ts` → `plugins/` |
+| `/skills` | ❌ 9.7 取消 | ✅ 🟡 未来 Task 18: Skills 系统 | L1751: `skills/loadSkillsDir.ts` → `skills/` |
 
 ### ❌ 计划未覆盖 — 列入 Open Questions
 
@@ -593,6 +613,8 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 | `/branch` (`/fork`) | 🔴 Stub | 会话分叉逻辑未在任何 Task 中规划 |
 | `/rewind` (`/checkpoint`) | 🔴 Stub | Checkpoint/snapshot 系统未在任何 Task 中规划 |
 | `/btw` | ⚠️ Partial | Mid-stream injection 需要 streaming engine 支持边流边收输入，计划中无此项 |
+| `/effort` | ❌ 9.7 取消 | 需要 engine 支持 effort/temperature 参数。Long-term plan 未明确覆盖 |
+| `/insights` | ❌ 9.7 取消 | 需要 Session Storage (Phase 2 Task 8) + LLM facet extraction。Long-term plan 未以命令形式覆盖 |
 
 ---
 
@@ -611,11 +633,15 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 | OQ-6 | **`/branch` (`/fork`) stub — 会话分叉** <br> 需要 deep copy messages + 独立 session ID。Claude Code 同名命令存在但与 subagent fork 重叠。需要决定：(a) 实现为轻量 message fork，或 (b) 与将来的 multi-agent 系统合并设计 | Phase 9 审查 | 📌 待决定是否实现 |
 | OQ-7 | **`/rewind` (`/checkpoint`) stub — 对话回退** <br> 需要 message snapshot stack。Claude Code 同名命令存在但源码较薄（仅 index.ts 入口）。需要决定：(a) 简单实现为 truncate messages 到指定轮，或 (b) full checkpoint with branching | Phase 9 审查 | 📌 待决定实现深度 |
 | OQ-8 | **`/btw` partial — mid-stream 注入** <br> 当前等同于直接发消息。真正的 `/btw` 需要 streaming 引擎支持边流边收输入。三种实现路径：A 打断+重发（中等难度），B side fork（高难度），C 下轮生效（低难度但无核心价值）。`Cascade_long_term_plan_v3.md` 中无此项规划 | Phase 9 审查 | 📌 待决定实现路径 |
+| OQ-9 | **`/effort` — effort/temperature 参数系统** <br> Phase 9.7 取消。需要 engine 支持 effort 参数影响 temperature/max_tokens/thinking budget。Claude Code 有 22KB `effort.tsx` JSX slider。Long-term plan 未明确覆盖，可在 Phase 2 (QueryEngine v2) 或 Phase 3 (Config System) 中作为子 Task 加入 | Phase 9.7 取消 | 📌 待决定归属 |
+| OQ-10 | **`/insights` — 使用分析与报告** <br> Phase 9.7 取消。Claude Code 中最长命令文件 (3,201 行)：历史 session 遍历 + Opus facet extraction + HTML 报告。全面依赖 Session Storage (Phase 2 Task 8)。可在 Session Storage 就绪后作为后续功能加入 | Phase 9.7 取消 | 📌 待 Session Storage 就绪后评估 |
 
 ---
 
 ### Next Steps
 → Phase 9.5 (Batch 5): Git commands — **CANCELLED** (redundant with BashTool)
-→ Phase 9.7 (Batch 7): Plugin commands — see `docs/plans/v0.3.0/phase9.7-batch7-plugin-commands.md`
+→ Phase 9.7 (Batch 7): Plugin commands — **CANCELLED** (see above, deferred to Long-Term Plan)
+→ **v0.3.0 收尾:** commit pending changes, tag v0.3.0
+→ **v0.4.0:** [Phase 0 Architecture Hardening](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/plans/v0.4.0/phase0-arch-hardening.md) → Long-Term Plan Phase 1 开始
 
 ---

@@ -3,7 +3,7 @@ from rich.text import Text as RichText
 from rich.panel import Panel
 from rich.console import Group
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 _LOGO = [
     r"██████╗ █████╗ ███████╗ ██████╗ █████╗ ██████╗ ███████╗",
