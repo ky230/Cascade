@@ -458,10 +458,10 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 ```
 
 
-## Phase 9: Slash Command Suite (20 commands) ✅
+## Phase 9: Slash Command Suite (22 commands) ✅
 - **Completed:** 2026-04-16
 - **Branch:** `feat/phase8-slash-commands`
-- **Reviewed by:** Role 3 (Phases 9.1-9.3.5, total 13 rounds across 4 batches)
+- **Reviewed by:** Role 3 (Phases 9.1-9.4.5, total 13 rounds across 6 batches)
 
 ### Command Inventory
 
@@ -501,12 +501,28 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 | `/copy` | — | ✅ Full | `commands/workflow/copy.py` | subprocess pbcopy/xclip, `/copy N`, `/tmp/cascade/` fallback |
 | `/status` | `/summary`, `/stats` | ✅ Full | `commands/workflow/status.py` | Version, model, session duration, message counts (user/assistant/system), block-aware token estimation, tool count, theme |
 
+#### Phase 9.4 (Batch 4): Tools — 1 command
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/tools` | — | ✅ Full | `commands/tools/tools_list.py` | Cascade original (inspired by Gemini CLI). Lists name, description for all registered tools sorted alphabetically. |
+
+#### Phase 9.4.5 (Batch 4.5): Auto Mode — 1 command
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/auto` | — | ✅ Full | `commands/tools/auto.py` | Cascade original. Toggles `PermissionEngine.mode` between AUTO (confirm destructive) and BYPASS (auto-approve all). No execution flow changes needed. |
+
 #### Removed by Design
 
 | Command | Reason |
 |---------|--------|
 | `/brief` | Decided against by Role 1 (Phase 9.3) |
 | `/diff` | Superseded by BashTool + `git diff` — AI can see the output; `/diff` would only show it to the user (Phase 9.3.5) |
+| `/permissions` | Removed from Batch 4 — wait for Phase 6 (v0.9.0) Advanced Permission System |
+| `/hooks` | Removed from Batch 4 — wait for Phase 7 (v0.10.0) Hooks & CASCADE.md Rules |
+| `/sandbox` | Removed from Batch 4 — Claude Code depends on closed-source `@anthropic-ai/sandbox-runtime` |
+| `/debug-tool-call` | Removed from Batch 4 — Claude Code itself disabled it (`isEnabled: false, isHidden: true`) |
 
 ### Infrastructure Added
 
@@ -521,18 +537,20 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 e8507e7  feat(commands): Phase 9.1 Batch 1 — add 6 session management commands
 63a8383  feat(commands): Phase 9.2 Batch 2 — add 5 setup & diagnostics commands
 51eab4e  feat(ui): add /theme /btw /shortcuts commands (Phase 9.3 Batch 3)
-(pending) feat(workflow): add /copy /status commands + token estimation (Phase 9.3.5)
+c95bd69  feat(workflow): add /copy /status commands + token estimation (Phase 9.3.5)
+057fc4c  feat(commands): add /tools command (Phase 9.4 Batch 4)
+(pending) feat(commands): add /auto command (Phase 9.4.5)
 ```
 
 ### Summary
 
 | Metric | Count |
 |--------|-------|
-| Total commands | **20** |
-| ✅ Full implementation | **13** |
+| Total commands | **22** |
+| ✅ Full implementation | **15** |
 | ⚠️ Partial (functional but incomplete) | **2** (`/compact`, `/btw`) |
 | 🔴 Pure stub | **4** (`/resume`, `/rename`, `/branch`, `/rewind`) |
-| Removed by design | **2** (`/brief`, `/diff`) |
+| Removed by design | **6** (`/brief`, `/diff`, `/permissions`, `/hooks`, `/sandbox`, `/debug-tool-call`) |
 
 ---
 
@@ -577,8 +595,8 @@ e8507e7  feat(commands): Phase 9.1 Batch 1 — add 6 session management commands
 ---
 
 ### Next Steps
-→ Phase 9.3.5 待 commit + push。
-→ Phase 9.4 (Batch 4): Tools & Auto Mode commands (`/permissions`, `/hooks`, `/debug_tool`, `/sandbox`, `/auto`)
-→ See `docs/plans/v0.3.0/phase9-slash-commands-v2.md` for remaining commands (Batch 4-7).
+→ Phase 9.5 (Batch 5): Git commands — see `docs/plans/v0.3.0/phase9.5-batch5-git-commands.md`
+→ Phase 9.6 (Batch 6): Memory commands — see `docs/plans/v0.3.0/phase9.6-batch6-memory-commands.md`
+→ Phase 9.7 (Batch 7): Plugin commands — see `docs/plans/v0.3.0/phase9.7-batch7-plugin-commands.md`
 
 ---
