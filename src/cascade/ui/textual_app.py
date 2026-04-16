@@ -139,6 +139,9 @@ class CascadeApp(App):
         self.router.register(CopyCommand())
         self.router.register(StatusCommand())
 
+        from cascade.commands.tools.tools_list import ToolsCommand
+        self.router.register(ToolsCommand())
+
         # ── Theme state ──
         self._current_theme = "dark"
 
