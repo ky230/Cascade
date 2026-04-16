@@ -20,6 +20,7 @@ class HelpCommand(BaseCommand):
             "Workflow": ("🔷", "#5f87ff"),
             "Plugins": ("🔶", "#ffaf00"),
             "Memory": ("🧩", "#af87ff"),
+            "Rules": ("📜", "#ffd700"),
         }
 
         lines = ["[bold #5fd7ff]═══ Cascade Commands ═══[/bold #5fd7ff]", ""]

@@ -145,6 +145,11 @@ class CascadeApp(App):
         from cascade.commands.tools.auto import AutoCommand
         self.router.register(AutoCommand())
 
+        from cascade.commands.rules.rules import RulesCommand
+        from cascade.commands.rules.context import ContextCommand
+        self.router.register(RulesCommand())
+        self.router.register(ContextCommand())
+
         # ── Theme state ──
         self._current_theme = "dark"
 

@@ -458,7 +458,7 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 ```
 
 
-## Phase 9: Slash Command Suite (22 commands) ✅
+## Phase 9: Slash Command Suite (24 commands) ✅
 - **Completed:** 2026-04-16
 - **Branch:** `feat/phase8-slash-commands`
 - **Reviewed by:** Role 3 (Phases 9.1-9.4.5, total 13 rounds across 6 batches)
@@ -513,6 +513,13 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 |---------|---------|--------|------|-------|
 | `/auto` | — | ✅ Full | `commands/tools/auto.py` | Cascade original. Toggles `PermissionEngine.mode` between AUTO (confirm destructive) and BYPASS (auto-approve all). No execution flow changes needed. |
 
+#### Phase 9.6 (Batch 6): Rules & Context — 2 commands
+
+| Command | Aliases | Status | File | Notes |
+|---------|---------|--------|------|-------|
+| `/rules` | — | ✅ Full | `commands/rules/rules.py` + `editor_screen.py` | Cascade original (renamed from Claude Code `/memory`). Textual OptionList file picker + TextArea inline editor + Ctrl+S hot-reload. Surpasses Claude Code's `$EDITOR` approach. |
+| `/context` | — | ⚠️ **Stub** | `commands/rules/context.py` | STUB — char/4 rough token estimation with color-coded progress bar. Real implementation needs `analyzeContextUsage` engine (v0.4.0+). |
+
 #### Removed by Design
 
 | Command | Reason |
@@ -528,6 +535,7 @@ b9fdf11  chore(docs): move input-queue plan to v0.3.0/phase8.5.4
 
 | Module | File | Purpose |
 |--------|------|---------|
+| CASCADE.md Loading | `src/cascade/bootstrap/system_prompt.py` | `CASCADE_MD_PATHS` + `get_cascade_md_files()` — discovers CASCADE.md at project/user/global levels and injects into system prompt. Prerequisite for `/rules` hot-reload. |
 | Token Estimation | `src/cascade/utils/tokens.py` | Block-aware rough estimation aligned with Claude Code `tokenEstimation.ts` L203-435. UTF-8 byte length for CJK. Handles text, tool_use, tool_result, image (2000), thinking, redacted_thinking blocks. |
 | Theme System | `src/cascade/ui/styles.py` | Multi-theme (ThemeColors dataclass, `build_tcss()` generator, `hot_swap_css()` for Textual 8.x CssSource API) |
 | Theme Palette | `src/cascade/ui/theme_palette.py` | Interactive ↑↓ picker with live preview and Esc rollback |
@@ -539,16 +547,18 @@ e8507e7  feat(commands): Phase 9.1 Batch 1 — add 6 session management commands
 51eab4e  feat(ui): add /theme /btw /shortcuts commands (Phase 9.3 Batch 3)
 c95bd69  feat(workflow): add /copy /status commands + token estimation (Phase 9.3.5)
 057fc4c  feat(commands): add /tools command (Phase 9.4 Batch 4)
-(pending) feat(commands): add /auto command (Phase 9.4.5)
+e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
+(pending) feat(commands): add /rules /context commands + CASCADE.md loading (Phase 9.6 Batch 6)
 ```
 
 ### Summary
 
 | Metric | Count |
 |--------|-------|
-| Total commands | **22** |
-| ✅ Full implementation | **15** |
+| Total commands | **24** |
+| ✅ Full implementation | **16** |
 | ⚠️ Partial (functional but incomplete) | **2** (`/compact`, `/btw`) |
+| ⚠️ Stub (functional but rough) | **1** (`/context`) |
 | 🔴 Pure stub | **4** (`/resume`, `/rename`, `/branch`, `/rewind`) |
 | Removed by design | **6** (`/brief`, `/diff`, `/permissions`, `/hooks`, `/sandbox`, `/debug-tool-call`) |
 
@@ -595,8 +605,7 @@ c95bd69  feat(workflow): add /copy /status commands + token estimation (Phase 9.
 ---
 
 ### Next Steps
-→ Phase 9.5 (Batch 5): Git commands — see `docs/plans/v0.3.0/phase9.5-batch5-git-commands.md`
-→ Phase 9.6 (Batch 6): Memory commands — see `docs/plans/v0.3.0/phase9.6-batch6-memory-commands.md`
+→ Phase 9.5 (Batch 5): Git commands — **CANCELLED** (redundant with BashTool)
 → Phase 9.7 (Batch 7): Plugin commands — see `docs/plans/v0.3.0/phase9.7-batch7-plugin-commands.md`
 
 ---
