@@ -645,3 +645,14 @@ e86dc14  feat(commands): add /auto command + update walkthrough (Phase 9.4.5)
 → **v0.4.0:** [Phase 0 Architecture Hardening](file:///Users/ky230/Desktop/Private/Workspace/Git/Cascade/docs/plans/v0.4.0/phase0-arch-hardening.md) → Long-Term Plan Phase 1 开始
 
 ---
+
+## Open Questions (v0.4.0)
+
+> 以下问题在 v0.4.0 版本周期中被识别但尚未解决。
+
+| # | 问题 | 来源 | 状态 |
+|---|------|------|------|
+| OQ-11 | **思考模式与 effort 控制系统** <br><br> 多家 provider 的模型已支持"思考模式"（先输出推理链再输出最终答案），各家 API 参数不一致：<br> - **DeepSeek V4**: `extra_body={"thinking": {"type": "enabled/disabled"}}` + `reasoning_effort="high/max"`。V4-Flash/V4-Pro 默认 `thinking=enabled, effort=high`。思考链通过 `delta.reasoning_content` 返回。<br> - **Anthropic Claude**: `thinking` block 在 messages 协议中显式建模。<br> - **OpenAI o-系列 / Gemini thinking**: 各有不同的 `reasoning_effort` 参数。<br><br> **当前 Cascade 状态：** `api_client.py` 的 `stream_full()` 不传任何思考参数，服务端按默认行为执行。DeepSeek V4 默认开启思考，但 `reasoning_content` 被忽略（L441 只读 `delta.content`）。<br><br> **待解决：**<br> 1. 是否在 `api_client.py` 中读取并保存 `reasoning_content`？（影响 token 统计和上下文拼接）<br> 2. UI 层是否展示思考链？（折叠显示 vs 完全隐藏 vs 可选）<br> 3. 用户控制粒度：全局开关（`/thinking on\|off`）、模型级默认、还是按需覆盖（`/effort high\|max`）？<br> 4. 多轮对话中 `reasoning_content` 的上下文拼接策略（DeepSeek V4 要求：有 tool_call 的轮次必须回传 reasoning_content，否则 400 报错）<br><br> **与 OQ-9 的关系：** OQ-9 (`/effort` 命令) 是此问题的用户交互层面。此 OQ 覆盖完整的技术栈（API → Engine → UI）。 | DeepSeek V4 发布 (2026-04-24) | 📌 架构完成后统一设计，需调研所有 provider 的思考模式 API |
+| OQ-12 | **统一的 Web Search 工具栈缺失** <br><br> 目前大模型 API 的内置联网能力极度碎片化且黑盒：<br> - **Gemini**: 原生支持 `googleSearch` grounding，闭环搜索速度快，但易受搜索结果误导（幻觉式信任）。<br> - **Kimi**: 提供 `$web_search` 插件，返回 tool calls 要求客户端二次请求，单次搜索耗费上万 token（价格刺客）。<br> - **DeepSeek V4 / Claude**: 官方纯净 API 不提供内置网络搜索，仅能生成搜索 query。<br><br> **当前 Cascade 状态：** 因未封装自定义搜索工具，切换到无内置搜索的模型时会“断网”。<br><br> **待解决：**<br> 必须在 v0.4.0（Tool System Hardening）或之后的 Phase 中，实现第一方控制的 `WebSearchTool`（如基于 Tavily、DuckDuckGo 或 Google API）。统一屏蔽各家 provider 的私有联网接口，实现：<br> 1. 低 token 消耗（只取 Snippet 或净化文本）<br> 2. 跨模型一致的联网体验 <br> 3. 搜索过程的透明可观测。 | Web Search 方案调研 (2026-04-24) | 📌 待纳入 Tool System 规划 |
+
+---

@@ -68,6 +68,11 @@ class ContextCommand(BaseCommand):
 
     # Manual context window overrides for models LiteLLM doesn't know
     _CONTEXT_OVERRIDES: dict[str, int] = {
+        # DeepSeek V4: all 1M context
+        "deepseek-v4-flash": 1_000_000,
+        "deepseek-v4-pro": 1_000_000,
+        "deepseek-chat": 1_000_000,       # legacy alias → v4-flash
+        "deepseek-reasoner": 1_000_000,    # legacy alias → v4-flash thinking
         # Grok language models: all 2M context
         "grok-4.20-0309-reasoning": 2_000_000,
         "grok-4.20-0309-non-reasoning": 2_000_000,
@@ -77,7 +82,11 @@ class ContextCommand(BaseCommand):
         # Image generation models: fallback 200K
         "grok-imagine-image-pro": 200_000,
         "gemini-3.1-flash-image-preview": 200_000,
+        # Moonshot Kimi: K2.6 = 256K
+        "kimi-k2.6": 262_144,
         # Xiaomi MiMo-V2
+        "mimo-v2.5-pro": 1_000_000,
+        "mimo-v2.5": 1_000_000,
         "mimo-v2-pro": 1_000_000,
         "mimo-v2-omni": 256_000,
         "mimo-v2-flash": 256_000,

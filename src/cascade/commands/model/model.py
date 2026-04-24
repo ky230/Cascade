@@ -9,8 +9,8 @@ PROVIDER_CATALOG = {
         "display": "DeepSeek",
         "env_key": "DEEPSEEK_API_KEY",
         "models": [
-            {"id": "deepseek-chat", "label": "DeepSeek-V3.2", "price": "¥2.00/M in (¥0.20 hit), ¥3.00/M out"},
-            {"id": "deepseek-reasoner", "label": "DeepSeek-V3.2 (Reasoner)", "price": "¥2.00/M in (¥0.20 hit), ¥3.00/M out"},
+            {"id": "deepseek-v4-flash", "label": "DeepSeek-V4-Flash", "price": "¥1.00/M in (¥0.20 hit), ¥2.00/M out"},
+            {"id": "deepseek-v4-pro", "label": "DeepSeek-V4-Pro", "price": "¥12.00/M in (¥1.00 hit), ¥24.00/M out"},
         ],
     },
     "gemini": {
@@ -43,6 +43,7 @@ PROVIDER_CATALOG = {
         "display": "Moonshot (Kimi)",
         "env_key": "MOONSHOT_API_KEY",
         "models": [
+            {"id": "kimi-k2.6", "label": "Kimi K2.6", "price": "¥6.50/M in (¥1.10 hit), ¥27.00/M out"},
             {"id": "kimi-k2.5", "label": "Kimi K2.5", "price": "¥4.00/M in, ¥21.00/M out"},
             {"id": "moonshot-v1-128k", "label": "Kimi 128K", "price": "¥10.00/M in, ¥30.00/M out"},
             {"id": "moonshot-v1-128k-vision-preview", "label": "Kimi 128K Vision", "price": "¥10.00/M in, ¥30.00/M out"},
@@ -76,6 +77,8 @@ PROVIDER_CATALOG = {
         "display": "Xiaomi MiMo",
         "env_key": "XIAOMI_API_KEY",
         "models": [
+            {"id": "mimo-v2.5-pro", "label": "MiMo-V2.5-Pro", "price": "¥7.00/M in (¥1.40 hit), ¥21.00/M out (≤256K); ¥14/¥42 (>256K)"},
+            {"id": "mimo-v2.5", "label": "MiMo-V2.5-Omni", "price": "¥2.80/M in (¥0.56 hit), ¥14.00/M out (≤256K); ¥5.6/¥28 (>256K)"},
             {"id": "mimo-v2-pro", "label": "MiMo-V2-Pro", "price": "¥7.00/M in, ¥21.00/M out (≤256K); ¥14/¥42 (>256K)"},
             {"id": "mimo-v2-omni", "label": "MiMo-V2-Omni", "price": "¥2.80/M in, ¥14.00/M out"},
             {"id": "mimo-v2-flash", "label": "MiMo-V2-Flash", "price": "¥0.70/M in, ¥2.10/M out"},
